@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/publication-confirmation.schema.json",
+  "title": "PublicationConfirmationV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "confirmationId", "revisionHash", "platform", "accountRef", "visibility", "tokenHash", "issuedAt", "expiresAt", "consumedAt", "consumedByAttemptId"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.confirmation/v1" },
+    "confirmationId": { "type": "string", "minLength": 1 },
+    "revisionHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "accountRef": { "type": "string", "minLength": 1 },
+    "visibility": { "enum": ["private", "friends", "public"] },
+    "tokenHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "consumedAt": { "type": ["string", "null"], "format": "date-time" },
+    "consumedByAttemptId": { "type": ["string", "null"] }
+  }
+}

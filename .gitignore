@@ -1,0 +1,8 @@
+node_modules/
+*.tgz
+.env
+.env.*
+cookies.json
+auth.json
+runtime-state/
+sidecars/

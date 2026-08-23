@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/evidence-brief.schema.json",
+  "title": "EvidenceBriefV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "briefId", "sourceIds", "objective", "audience", "coreMessage", "claims", "callToAction", "constraints", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.brief/v1" },
+    "briefId": { "type": "string", "pattern": "^brief_[a-f0-9]{64}$" },
+    "sourceIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^source_[a-f0-9]{64}$" } },
+    "objective": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string", "minLength": 1 },
+    "coreMessage": { "type": "string", "minLength": 1 },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "evidenceRefs"],
+        "properties": {
+          "claim": { "type": "string", "minLength": 1 },
+          "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "callToAction": { "type": "string" },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

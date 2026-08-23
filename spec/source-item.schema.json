@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/source-item.schema.json",
+  "title": "SourceItem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "source",
+    "externalId",
+    "canonicalUrl",
+    "observedAt",
+    "visibility",
+    "content",
+    "provenance"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "connectorId"],
+      "properties": {
+        "platform": { "type": "string", "minLength": 1 },
+        "connectorId": { "type": "string", "minLength": 1 },
+        "sourceAccountId": { "type": "string" }
+      }
+    },
+    "externalId": { "type": "string", "minLength": 1 },
+    "canonicalUrl": { "type": "string", "format": "uri" },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "externalId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "profileUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "visibility": { "enum": ["public", "owned", "authorized", "restricted"] },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "media"],
+      "properties": {
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "language": { "type": "string" },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "url"],
+            "properties": {
+              "type": { "enum": ["image", "video", "audio", "document", "link"] },
+              "url": { "type": "string", "format": "uri" },
+              "rightsNote": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accessMode", "contentHash"],
+      "properties": {
+        "accessMode": {
+          "enum": ["official-api", "official-feed-export", "delegated-service", "manual-import"]
+        },
+        "upstreamUrl": { "type": "string", "format": "uri" },
+        "contentHash": { "type": "string", "minLength": 1 },
+        "observationRef": { "type": "string" },
+        "termsBasis": { "type": "string" }
+      }
+    },
+    "tombstonedAt": { "type": "string", "format": "date-time" }
+  }
+}

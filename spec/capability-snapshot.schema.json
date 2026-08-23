@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.local/social-workbench/capability-snapshot.schema.json",
+  "title": "Social Workbench capability snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "overall", "summary", "activity", "capabilities"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.capability-snapshot/v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "overall": { "enum": ["ready", "degraded", "blocked", "unknown"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ready", "degraded", "blocked", "unknown", "planned"],
+      "properties": {
+        "ready": { "type": "integer", "minimum": 0 },
+        "degraded": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 },
+        "planned": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "counts"],
+      "properties": {
+        "mode": { "const": "staging-only" },
+        "counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    }
+  },
+  "$defs": {
+    "localized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zh", "en"],
+      "properties": {
+        "zh": { "type": "string", "minLength": 1 },
+        "en": { "type": "string", "minLength": 1 }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "status", "authority"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9.-]*$" },
+        "kind": { "enum": ["read", "write", "execute", "decision"] },
+        "status": { "enum": ["available", "restricted", "planned"] },
+        "authority": { "enum": ["agent", "user", "system"] }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "status", "reason", "message", "observedAt", "evidenceRefs", "remedy"],
+      "properties": {
+        "type": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]+$" },
+        "status": { "enum": ["true", "false", "unknown"] },
+        "reason": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]+$" },
+        "message": { "type": "string", "minLength": 1 },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "evidenceRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "remedy": { "type": ["string", "null"] }
+      }
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "summary", "observedAt", "conditions"],
+      "properties": {
+        "state": { "enum": ["ready", "degraded", "blocked", "unknown", "not-applicable"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "observedAt": { "type": ["string", "null"], "format": "date-time" },
+        "conditions": { "type": "array", "items": { "$ref": "#/$defs/condition" } }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "area", "title", "summary", "lifecycle", "critical", "operations", "dependencies", "health"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9.-]*$" },
+        "version": { "type": "string", "minLength": 1 },
+        "area": { "enum": ["ingress", "repository", "access", "content", "publication", "governance", "experience"] },
+        "title": { "$ref": "#/$defs/localized" },
+        "summary": { "$ref": "#/$defs/localized" },
+        "lifecycle": { "enum": ["available", "partial", "planned"] },
+        "critical": { "type": "boolean" },
+        "operations": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+        "dependencies": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9.-]*$" }, "uniqueItems": true },
+        "health": { "$ref": "#/$defs/health" }
+      }
+    }
+  }
+}

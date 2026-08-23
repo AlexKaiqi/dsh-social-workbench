@@ -1,0 +1,14 @@
+{
+  "name": "@dsh-social-workbench/runtime-spike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Executable dual-platform publication truth gate for the DSH Social Workbench",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/*.mjs && node --check src/adapters/*.mjs && npm test"
+  }
+}

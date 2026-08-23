@@ -1,0 +1,57 @@
+{
+  "specVersion": "0.3.0",
+  "name": "dsh-social-workbench",
+  "pluginTypes": ["F1", "F2", "F3"],
+  "facts": {
+    "modelVisible": true,
+    "registersTools": true,
+    "filesystem": "write",
+    "persistentState": true,
+    "subprocess": false,
+    "subagents": false,
+    "temporaryResources": false,
+    "customProtocol": true
+  },
+  "package": { "path": "package.json" },
+  "model": {
+    "dir": "dsh/model",
+    "readme": "dsh/model/README.md",
+    "files": [
+      { "path": "prompt.js", "export": "PROMPT", "role": "staticText" },
+      { "path": "tool-surface.js", "export": "SOCIAL_WORKBENCH_TOOL", "role": "toolSurface", "toolName": "social_workbench", "helpPointer": "action=help" },
+      { "path": "tool-surface.js", "export": "SOCIAL_WORKBENCH_OUTPUT", "role": "contract", "contractKind": "toolOutput" }
+    ]
+  },
+  "help": {
+    "file": "dsh/help.js",
+    "versionExport": "VERSION",
+    "commands": ["help", "status", "read", "ingest", "create_brief", "build_package"]
+  },
+  "tests": {
+    "contractTests": [
+      { "file": "test/model.test.mjs", "references": ["PROMPT", "SOCIAL_WORKBENCH_TOOL", "SOCIAL_WORKBENCH_OUTPUT"] },
+      { "file": "test/client-contract.test.mjs", "references": ["settings.section", "/dsh-social-workbench"] }
+    ],
+    "runtimeTests": [
+      { "file": "test/assembly.test.mjs", "layer": "L1" },
+      { "file": "test/service.test.mjs", "layer": "L2" },
+      { "file": "test/capability-registry.test.mjs", "layer": "L0" },
+      { "file": "test/health-probes.test.mjs", "layer": "L2" },
+      { "file": "test/rpc.test.mjs", "layer": "L1" }
+    ]
+  },
+  "config": {
+    "file": "dsh/index.js",
+    "schemaExport": "Config",
+    "rootField": "root",
+    "assembly": { "file": "dsh/index.js" }
+  },
+  "contracts": [
+    { "name": "social-workbench-source", "file": "spec/source-bundle.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-brief", "file": "spec/evidence-brief.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-package", "file": "spec/content-package.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-receipt", "file": "spec/publication-receipt.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-capability-snapshot", "file": "spec/capability-snapshot.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-capability-rpc", "file": "spec/rpc-contract.json", "versionField": "version" }
+  ]
+}

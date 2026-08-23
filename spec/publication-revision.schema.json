@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/publication-revision.schema.json",
+  "title": "PublicationRevisionV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "revisionHash", "platform", "accountRef", "visibility", "testMode", "content", "execution", "sourceRefs", "preparedAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.revision/v1" },
+    "revisionHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "accountRef": { "type": "string", "minLength": 1 },
+    "visibility": { "enum": ["private", "friends", "public"] },
+    "testMode": { "type": "boolean" },
+    "content": {
+      "type": "object",
+      "required": ["title", "body", "media"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string" },
+        "verifyMarker": { "type": "string" },
+        "topics": { "type": "array", "items": { "type": "string" } },
+        "media": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["kind", "path", "size", "contentHash"],
+            "properties": {
+              "kind": { "enum": ["image", "video"] },
+              "path": { "type": "string", "minLength": 1 },
+              "size": { "type": "integer", "minimum": 1 },
+              "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "schedulePublishAt": { "type": "string", "format": "date-time" },
+        "manifest": {
+          "type": "object",
+          "required": ["path", "size", "contentHash"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "size": { "type": "integer", "minimum": 1 },
+            "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          }
+        }
+      }
+    },
+    "sourceRefs": { "type": "array", "items": { "type": "string" } },
+    "preparedAt": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "testMode": { "const": true } } },
+      "then": { "properties": { "visibility": { "const": "private" } } }
+    }
+  ]
+}

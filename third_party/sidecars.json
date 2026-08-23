@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "social-workbench.sidecars/v1",
+  "sidecars": {
+    "xiaohongshu": {
+      "repository": "https://github.com/xpzouying/xiaohongshu-mcp.git",
+      "commit": "6fb866a7db4e3dcce8dc00a0dde07370f3b12946",
+      "license": "Apache-2.0",
+      "patch": null
+    },
+    "douyin": {
+      "repository": "https://github.com/ChronoAIProject/broadcast-kit.git",
+      "commit": "94cf038f7ed65f0b6d351368c7236ba6faaf9849",
+      "license": "MIT",
+      "patch": "./broadcast-kit/social-workbench.patch",
+      "patchedFiles": {
+        "pyproject.toml": "8f510b4c0adf38b5a51a54efc269ad0b7efa4948f468f069c73432925fb9772e",
+        "broadcast_kit/commands/doctor.py": "59a9f13781ec78c573c4abcca8b8a2c86d487b2848295875568f485f179bcc52",
+        "broadcast_kit/publishers/douyin/manifest_schema.py": "db0c0d8bea6a10577b916b475b9f797d4a03c9a36a62331c7b8c9bade025b093",
+        "broadcast_kit/publishers/douyin/publish.py": "436fef3defa93295ccf80bb2024ef0977e6765803d98e76d6644d3a78247ba9f",
+        "broadcast_kit/publishers/douyin/cli.py": "bc8b2b8cec13b0e985cda69382a14eba294106975796de12200006a73bdef390",
+        "broadcast_kit/publishers/douyin/__init__.py": "30e092687258dd97e925c3c1ccf84fd680de2096752775155c3e574f66126236",
+        "tests/test_social_workbench_guards.py": "3c362ba986093611bf5ebafde7f0381fcc69f8c8405bcadd935c978378003a6a"
+      }
+    }
+  },
+  "tooling": {
+    "imageioFfmpeg": "0.6.0"
+  }
+}

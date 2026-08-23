@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/content-brief.schema.json",
+  "title": "ContentBrief",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "revision", "objective", "audience", "signalRefs", "claims", "channels", "status"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "objective": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string", "minLength": 1 },
+    "signalRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "evidenceRefs", "status"],
+        "properties": {
+          "claim": { "type": "string", "minLength": 1 },
+          "evidenceRefs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "status": { "enum": ["supported", "needs-review", "prohibited"] }
+        }
+      }
+    },
+    "channels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "tone": { "type": "string" },
+    "callToAction": { "type": "string" },
+    "assetRefs": { "type": "array", "items": { "type": "string" } },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "status": { "enum": ["draft", "review", "approved", "superseded"] }
+  }
+}

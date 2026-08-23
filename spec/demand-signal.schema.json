@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/demand-signal.schema.json",
+  "title": "DemandSignal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "revision",
+    "audience",
+    "problem",
+    "evidenceRefs",
+    "counterEvidenceRefs",
+    "confidence",
+    "status",
+    "derivedAt"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "audience": { "type": "string", "minLength": 1 },
+    "problem": { "type": "string", "minLength": 1 },
+    "desiredOutcome": { "type": "string" },
+    "currentAlternatives": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "counterEvidenceRefs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "frequency": { "enum": ["unknown", "isolated", "repeated", "widespread"] },
+    "urgency": { "enum": ["unknown", "low", "medium", "high"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "status": { "enum": ["candidate", "accepted", "rejected", "superseded"] },
+    "modelRoute": { "type": "string" },
+    "derivationVersion": { "type": "string" },
+    "derivedAt": { "type": "string", "format": "date-time" },
+    "reviewNote": { "type": "string" }
+  }
+}

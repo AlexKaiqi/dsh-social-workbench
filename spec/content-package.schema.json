@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/content-package.schema.json",
+  "title": "ContentPackageV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "packageId", "briefId", "sourceIds", "accounts", "visibility", "testMode", "variants", "marker", "revisions", "artifacts", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.content-package/v1" },
+    "packageId": { "type": "string", "pattern": "^package_[a-f0-9]{64}$" },
+    "briefId": { "type": "string", "pattern": "^brief_[a-f0-9]{64}$" },
+    "sourceIds": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^source_[a-f0-9]{64}$" } },
+    "accounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xiaohongshu", "douyin"],
+      "properties": {
+        "xiaohongshu": { "type": "string", "minLength": 1 },
+        "douyin": { "type": "string", "minLength": 1 }
+      }
+    },
+    "visibility": { "enum": ["private", "friends", "public"] },
+    "testMode": { "type": "boolean" },
+    "variants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xiaohongshu", "douyin"],
+      "properties": {
+        "xiaohongshu": { "$ref": "#/$defs/variant" },
+        "douyin": { "$ref": "#/$defs/variant" }
+      }
+    },
+    "marker": { "type": "string", "pattern": "^SWB-[A-F0-9]{12}$" },
+    "revisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xiaohongshu", "douyin"],
+      "properties": {
+        "xiaohongshu": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "douyin": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["douyinManifest"],
+      "properties": { "douyinManifest": { "type": "string", "minLength": 1 } }
+    },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "body", "mediaRefs"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "topics": { "type": "array", "items": { "type": "string" } },
+        "mediaRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

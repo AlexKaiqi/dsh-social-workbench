@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/adapter-manifest.schema.json",
+  "title": "AdapterManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "kind",
+    "runtime",
+    "license",
+    "configSchema",
+    "capabilities",
+    "maturity",
+    "evidence",
+    "conformance"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "version": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["ingress", "repository", "knowledge-access", "transformation", "tool"] },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "language"],
+      "properties": {
+        "mode": { "enum": ["in-process", "worker", "http", "mcp", "subprocess", "manual"] },
+        "language": { "type": "string", "minLength": 1 },
+        "entrypoint": { "type": "string" }
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdx", "sourceUrl", "reviewState"],
+      "properties": {
+        "spdx": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "reviewState": { "enum": ["unreviewed", "compatible", "restricted", "rejected"] },
+        "note": { "type": "string" }
+      }
+    },
+    "configSchema": { "type": "object" },
+    "secretFields": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "maturity": { "enum": ["experimental", "community", "verified", "production", "suspended"] },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "url", "checkedAt"],
+        "properties": {
+          "kind": { "enum": ["official-doc", "official-sdk", "source", "license", "terms", "live-test"] },
+          "url": { "type": "string", "format": "uri" },
+          "checkedAt": { "type": "string", "format": "date-time" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suiteVersion", "status"],
+      "properties": {
+        "suiteVersion": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["not-run", "passed-mock", "passed-sandbox", "passed-live", "failed"] },
+        "lastRunAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

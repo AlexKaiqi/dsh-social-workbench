@@ -1,0 +1,8 @@
+- insert:
+    - id: social-workbench
+      name: '@dsh/social-workbench'
+      config:
+        enabled: true
+        root: '$DSH_HOME/social-workbench/runtime'
+        sidecarRoot: '$DSH_HOME/social-workbench/sidecars'
+        xiaohongshuUrl: 'http://127.0.0.1:18060'

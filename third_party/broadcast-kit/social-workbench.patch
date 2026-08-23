@@ -1,0 +1,387 @@
+diff --git a/broadcast_kit/commands/doctor.py b/broadcast_kit/commands/doctor.py
+index 33981d0..4d9a09d 100644
+--- a/broadcast_kit/commands/doctor.py
++++ b/broadcast_kit/commands/doctor.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+
+ import shutil
+ import sys
++import os
+ from pathlib import Path
+ from typing import Any
+
+@@ -96,7 +97,7 @@ def _per_account_state(state_root: Path, account: str, live_login_check: bool) -
+
+ def run(live_login_check: bool = False, account: str = "default", all_accounts: bool = False) -> dict[str, Any]:
+     """Read-only local capability check for agents after setup."""
+-    state_root = Path("state").resolve()
++    state_root = Path(os.getenv("BROADCAST_KIT_STATE_DIR", "state")).expanduser().resolve()
+     checks: dict[str, Any] = {
+         "python": {
+             "ok": sys.version_info >= (3, 11),
+diff --git a/broadcast_kit/publishers/douyin/__init__.py b/broadcast_kit/publishers/douyin/__init__.py
+index b3b59d5..3050b3c 100644
+--- a/broadcast_kit/publishers/douyin/__init__.py
++++ b/broadcast_kit/publishers/douyin/__init__.py
+@@ -24,6 +24,15 @@ def _scan_caption(caption: str) -> list[str]:
+     return [term for term in _FORBIDDEN_CAPTION_TERMS if term.lower() in lowered]
+
+
++def _result_is_confirmed(result: Any) -> bool:
++    return bool(
++        result.verdict == "success"
++        and result.cover_verified
++        and result.visibility_verified
++        and result.queue_verified == "true"
++    )
++
++
+ def publish(job: dict[str, Any], *, dry_run: bool, config: dict[str, Any]) -> dict[str, Any]:
+     """Dispatcher entry. `job` is either a broadcast-kit publish-job dict or a BRIEF v2 manifest dict."""
+
+@@ -76,15 +85,9 @@ def publish(job: dict[str, Any], *, dry_run: bool, config: dict[str, Any]) -> di
+             }
+
+     schedule_iso = job.get("douyin_schedule_publish_at") or item.douyin_schedule_publish_at
+-    if not schedule_iso:
+-        return {
+-            "platform": "douyin",
+-            "status": "schedule_missing",
+-            "reason": "douyin_schedule_publish_at is required",
+-        }
+     scheduled_at = datetime.fromisoformat(
+         schedule_iso[:-1] + "+00:00" if schedule_iso.endswith("Z") else schedule_iso
+-    )
++    ) if schedule_iso else None
+
+     submit = not dry_run
+
+@@ -100,6 +103,7 @@ def publish(job: dict[str, Any], *, dry_run: bool, config: dict[str, Any]) -> di
+             scheduled_publish_at=scheduled_at,
+             queue_verify_title=item.title,
+             queue_verify_slug=str(item.id),
++            visibility=str(job.get("visibility") or item.visibility or "private"),
+         )
+     except DouyinError as exc:
+         return {
+@@ -109,12 +113,14 @@ def publish(job: dict[str, Any], *, dry_run: bool, config: dict[str, Any]) -> di
+             "detail": str(exc),
+         }
+
++    triple_ok = _result_is_confirmed(result)
+     return {
+         "platform": "douyin",
+-        "status": "success" if result.verdict == "success" else result.verdict,
++        "status": "success" if triple_ok else ("failed" if result.submitted else result.verdict),
+         "judgement": result.verdict,
+         "detail": result.detail,
+         "cover_verify": result.cover_verified,
++        "visibility_verify": result.visibility_verified,
+         "queue_verify": result.queue_verified == "true",
+         "screenshots": [str(p) for p in result.screenshots],
+         "queue_evidence_txt": str(result.queue_evidence_txt) if result.queue_evidence_txt else None,
+diff --git a/broadcast_kit/publishers/douyin/cli.py b/broadcast_kit/publishers/douyin/cli.py
+index c217a1f..0224b3e 100644
+--- a/broadcast_kit/publishers/douyin/cli.py
++++ b/broadcast_kit/publishers/douyin/cli.py
+@@ -58,10 +58,11 @@ def _print_report(
+     manifest_path: Path,
+     video_path: Path,
+     schedule_at: str | None,
+-    douyin_schedule_at: datetime,
++    douyin_schedule_at: datetime | None,
+     judgement: str,
+     cover_verified: bool,
+     queue_verified: str,
++    visibility_verified: bool,
+     queue_txt: Path | None,
+     queue_png: Path | None,
+     screenshots: list[Path],
+@@ -71,7 +72,7 @@ def _print_report(
+     queue_str = {"true": "True", "false": "False", "partial": "partial", "not_checked": "not_checked"}.get(
+         queue_verified, queue_verified
+     )
+-    success = judgement == "success" and cover_verified and queue_verified == "true"
++    success = judgement == "success" and cover_verified and visibility_verified and queue_verified == "true"
+     conclusion = "成功" if success else ("部分成功" if judgement == "success" else "失败")
+     typer.echo("")
+     typer.echo(f"最终结论:{conclusion}")
+@@ -80,12 +81,13 @@ def _print_report(
+     typer.echo(f"- manifest: {manifest_path}")
+     typer.echo(f"- 视频: {video_path}")
+     typer.echo(f"- 内部触发: {schedule_at or '-'}")
+-    typer.echo(f"- 抖音定时: {douyin_schedule_at.isoformat()}")
++    typer.echo(f"- 抖音定时: {douyin_schedule_at.isoformat() if douyin_schedule_at else '-'}")
+     typer.echo("")
+     typer.echo("判定三元组:")
+     typer.echo(f"- JUDGEMENT: {judgement}")
+     typer.echo(f"- COVER_VERIFY: {cover_str}")
+     typer.echo(f"- QUEUE_VERIFY: {queue_str}")
++    typer.echo(f"- VISIBILITY_VERIFY: {'True' if visibility_verified else 'False'}")
+     typer.echo("")
+     typer.echo("证据:")
+     if screenshots:
+@@ -108,22 +110,23 @@ def _print_report(
+         stage = (
+             "judgement"
+             if judgement != "success"
+-            else ("cover" if not cover_verified else "queue")
++            else ("cover" if not cover_verified else ("visibility" if not visibility_verified else "queue"))
+         )
+         typer.echo(f"- 失败阶段: {stage}")
+-        typer.echo(f"- 失败原因: judgement={judgement}, cover_verify={cover_str}, queue_verify={queue_str}")
++        typer.echo(f"- 失败原因: judgement={judgement}, cover_verify={cover_str}, visibility_verify={visibility_verified}, queue_verify={queue_str}")
+         typer.echo("- 下一步: 不要继续发布下一条;查看证据后人工恢复")
+
+
+ @app.command("publish")
+ def publish_command(
+     manifest: Path = typer.Option(..., "--manifest", exists=True, file_okay=True, dir_okay=False),
+-    schedule_publish_at: str = typer.Option(..., "--schedule-publish-at", help="ISO 8601 with timezone"),
++    schedule_publish_at: str | None = typer.Option(None, "--schedule-publish-at", help="Optional ISO 8601 with timezone"),
+     autogen_cover: bool = typer.Option(True, "--autogen-cover/--no-autogen-cover"),
+     cover_at_seconds: float = typer.Option(6.0, "--cover-at-seconds"),
+     force_republish: bool = typer.Option(False, "--force-republish"),
+     submit_publish: bool = typer.Option(True, "--submit-publish/--dry-run"),
+     account: str = typer.Option("default", "--account", help="Account label under state/douyin/<account>/"),
++    visibility: str = typer.Option("private", "--visibility", help="private or public; private is the safe default"),
+ ) -> None:
+     setup_logging()
+     settings = load_settings(account=account)
+@@ -146,7 +149,7 @@ def publish_command(
+         raise typer.Exit(code=2)
+
+     try:
+-        douyin_at = _parse_tz(schedule_publish_at)
++        douyin_at = _parse_tz(schedule_publish_at) if schedule_publish_at else None
+     except ValueError as exc:
+         typer.echo(f"SCHEDULE_INVALID: {exc}")
+         raise typer.Exit(code=2) from exc
+@@ -183,6 +186,7 @@ def publish_command(
+             scheduled_publish_at=douyin_at,
+             queue_verify_title=item.title,
+             queue_verify_slug=slug,
++            visibility=visibility,
+         )
+     except DouyinError as exc:
+         typer.echo("JUDGEMENT: failed")
+@@ -197,6 +201,7 @@ def publish_command(
+         judgement=result.verdict,
+         cover_verified=result.cover_verified,
+         queue_verified=result.queue_verified,
++        visibility_verified=result.visibility_verified,
+         queue_txt=result.queue_evidence_txt,
+         queue_png=result.queue_evidence_png,
+         screenshots=result.screenshots,
+@@ -206,6 +211,7 @@ def publish_command(
+     triple_ok = (
+         result.verdict == "success"
+         and result.cover_verified
++        and result.visibility_verified
+         and result.queue_verified == "true"
+     )
+     if not triple_ok:
+diff --git a/broadcast_kit/publishers/douyin/manifest_schema.py b/broadcast_kit/publishers/douyin/manifest_schema.py
+index 92a740d..8f305a5 100644
+--- a/broadcast_kit/publishers/douyin/manifest_schema.py
++++ b/broadcast_kit/publishers/douyin/manifest_schema.py
+@@ -30,6 +30,7 @@ class ManifestItem(BaseModel):
+     status: str = "pending"
+     publish_enabled: bool | None = None
+     enabled: bool | None = None
++    visibility: Literal["private", "public"] = "private"
+
+     @field_validator("topics", mode="before")
+     @classmethod
+diff --git a/broadcast_kit/publishers/douyin/publish.py b/broadcast_kit/publishers/douyin/publish.py
+index 62b9ad7..9c8c8dc 100644
+--- a/broadcast_kit/publishers/douyin/publish.py
++++ b/broadcast_kit/publishers/douyin/publish.py
+@@ -50,6 +50,7 @@ class UploadResult:
+     screenshots: list[Path]
+     submitted: bool
+     cover_verified: bool
++    visibility_verified: bool = False
+     queue_verified: str = "not_checked"
+     queue_evidence_txt: Path | None = None
+     queue_evidence_png: Path | None = None
+@@ -1044,6 +1045,82 @@ def _click_submit_publish_button(page: Page) -> None:
+     raise DouyinError("publish submit button not found")
+
+
++def _visibility_label(visibility: str) -> str:
++    labels = {"private": "仅自己可见", "public": "公开"}
++    if visibility not in labels:
++        raise DouyinError(f"unsupported visibility: {visibility}")
++    return labels[visibility]
++
++
++def _visibility_candidate_selected(candidate) -> bool:
++    try:
++        return bool(candidate.evaluate(
++            """el => {
++                const control = el.closest("label, [role='radio'], [role='option'], [role='menuitemradio'], button") || el;
++                const input = control.matches("input") ? control : control.querySelector("input[type='radio'], input[type='checkbox']");
++                if (input && input.checked === true) return true;
++                if (control.getAttribute("aria-checked") === "true" || control.getAttribute("aria-selected") === "true") return true;
++                return false;
++            }"""
++        ))
++    except Exception:
++        return False
++
++
++def _set_visibility(page: Page, visibility: str) -> bool:
++    """Select and prove the requested visibility before submit.
++
++    This deliberately fails closed. Merely seeing the target label is not proof:
++    an accessible checked/selected state must be present after the click.
++    """
++    label = _visibility_label(visibility)
++    candidates = page.get_by_text(label, exact=True)
++    try:
++        for index in range(candidates.count()):
++            candidate = candidates.nth(index)
++            if candidate.is_visible(timeout=400) and _visibility_candidate_selected(candidate):
++                return True
++    except Exception:
++        pass
++
++    # Open the permissions row/dropdown when the target option is not visible.
++    for trigger_text in ("谁可以看", "可见范围", "公开"):
++        try:
++            triggers = page.get_by_text(trigger_text, exact=True)
++            for index in range(triggers.count()):
++                trigger = triggers.nth(index)
++                if not trigger.is_visible(timeout=300):
++                    continue
++                trigger.click(timeout=2500, force=True)
++                page.wait_for_timeout(500)
++                break
++        except Exception:
++            continue
++        try:
++            candidates = page.get_by_text(label, exact=True)
++            if candidates.count() > 0:
++                break
++        except Exception:
++            continue
++
++    try:
++        candidates = page.get_by_text(label, exact=True)
++        for index in range(candidates.count()):
++            candidate = candidates.nth(index)
++            if not candidate.is_visible(timeout=500):
++                continue
++            candidate.click(timeout=3000, force=True)
++            page.wait_for_timeout(800)
++            refreshed = page.get_by_text(label, exact=True)
++            for refreshed_index in range(refreshed.count()):
++                selected = refreshed.nth(refreshed_index)
++                if selected.is_visible(timeout=300) and _visibility_candidate_selected(selected):
++                    return True
++    except Exception:
++        pass
++    return False
++
++
+ def _try_set_scheduled_publish(page: Page, scheduled_at: datetime) -> bool:
+     _ensure_schedule_window(scheduled_at)
+     if not _click_scheduled_toggle(page):
+@@ -1085,6 +1162,7 @@ def upload_video(
+     scheduled_publish_at: datetime | None = None,
+     queue_verify_title: str | None = None,
+     queue_verify_slug: str | None = None,
++    visibility: str = "private",
+ ) -> UploadResult:
+     settings.ensure_runtime_dirs()
+     video = Path(video_path).expanduser().resolve()
+@@ -1161,6 +1239,11 @@ def upload_video(
+                 browser.close()
+                 raise DouyinError("scheduled publish toggle/time fill failed or target time not visible before submit")
+
++        visibility_verified = _set_visibility(page, visibility)
++        print(f"VISIBILITY_VERIFY: {visibility_verified} | requested={visibility}")
++        if not visibility_verified:
++            raise DouyinError(f"requested visibility was not visibly selected: {visibility}")
++
+         _wait_for_upload_ready(page)
+         if scheduled_publish_at is not None and not _publish_time_bound(page, scheduled_publish_at):
+             if settings.douyin_keep_open:
+@@ -1181,7 +1264,7 @@ def upload_video(
+             browser.close()
+             print("JUDGEMENT: not_submitted")
+             print(f"DETAIL: {detail}")
+-            return UploadResult("not_submitted", detail, screenshots, False, cover_verified)
++            return UploadResult("not_submitted", detail, screenshots, False, cover_verified, visibility_verified)
+
+         _click_submit_publish_button(page)
+         page.wait_for_timeout(6000)
+@@ -1227,6 +1310,7 @@ def upload_video(
+                 screenshots,
+                 True,
+                 cover_verified,
++                visibility_verified,
+                 queue_verified=queue_status,
+                 queue_evidence_txt=queue_txt,
+                 queue_evidence_png=queue_png,
+@@ -1234,4 +1318,4 @@ def upload_video(
+         detail = "发布后页面未出现 审核中/正在发布/发布成功"
+         print("JUDGEMENT: failed")
+         print(f"DETAIL: {detail}")
+-        return UploadResult("failed", detail, screenshots, True, cover_verified)
++        return UploadResult("failed", detail, screenshots, True, cover_verified, visibility_verified)
+diff --git a/pyproject.toml b/pyproject.toml
+index 0b9cbf6..d36c664 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -8,7 +8,7 @@ version = "0.1.0"
+ description = "Self-contained agent-facing publisher kit. Playwright-based Douyin and XHS publish flows plus X via NyxID/API, with persisted login state."
+ readme = "README.md"
+ requires-python = ">=3.11"
+-license = { text = "Proprietary" }
++license = { text = "MIT" }
+ authors = [{ name = "Broadcast Kit Maintainers" }]
+ dependencies = [
+   "typer>=0.12",
+diff --git a/tests/test_social_workbench_guards.py b/tests/test_social_workbench_guards.py
+new file mode 100644
+index 0000000..226e9b5
+--- /dev/null
++++ b/tests/test_social_workbench_guards.py
+@@ -0,0 +1,35 @@
++from pathlib import Path
++from types import SimpleNamespace
++
++from broadcast_kit.commands import doctor
++from broadcast_kit.publishers.douyin import _result_is_confirmed
++from broadcast_kit.publishers.douyin.publish import DouyinError, _visibility_label
++
++
++def test_doctor_respects_state_dir(monkeypatch, tmp_path: Path) -> None:
++    monkeypatch.setenv("BROADCAST_KIT_STATE_DIR", str(tmp_path))
++    report = doctor.run()
++    assert report["state"]["root"] == str(tmp_path.resolve())
++
++
++def test_top_level_success_requires_visibility_and_queue() -> None:
++    base = {
++        "verdict": "success",
++        "cover_verified": True,
++        "visibility_verified": True,
++        "queue_verified": "true",
++    }
++    assert _result_is_confirmed(SimpleNamespace(**base)) is True
++    assert _result_is_confirmed(SimpleNamespace(**{**base, "visibility_verified": False})) is False
++    assert _result_is_confirmed(SimpleNamespace(**{**base, "queue_verified": "partial"})) is False
++
++
++def test_visibility_defaults_are_explicit() -> None:
++    assert _visibility_label("private") == "仅自己可见"
++    assert _visibility_label("public") == "公开"
++    try:
++        _visibility_label("friends")
++    except DouyinError:
++        pass
++    else:
++        raise AssertionError("unsupported visibility must fail closed")

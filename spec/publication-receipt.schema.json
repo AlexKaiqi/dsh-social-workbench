@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/publication-receipt.schema.json",
+  "title": "PublicationReceiptV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "attemptId", "platform", "operation", "accountRef", "revisionHash", "visibility", "state", "submittedAt", "confirmedAt", "platformObject", "confirmationBasis", "checks", "evidenceRefs", "error"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.receipt/v1" },
+    "attemptId": { "type": "string", "minLength": 1 },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "operation": { "const": "publish_creator_browser" },
+    "accountRef": { "type": "string", "minLength": 1 },
+    "revisionHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "visibility": { "enum": ["private", "friends", "public"] },
+    "state": { "enum": ["confirmed_for_submit", "submitted", "confirmed", "cancelled", "failed", "unknown"] },
+    "submittedAt": { "type": ["string", "null"], "format": "date-time" },
+    "confirmedAt": { "type": ["string", "null"], "format": "date-time" },
+    "platformObject": {
+      "type": ["object", "null"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "confirmationBasis": {
+      "type": ["object", "null"],
+      "properties": {
+        "kind": { "const": "creator_queue_match" },
+        "evidenceRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "checks": { "type": "array", "items": { "type": "object" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "error": { "type": ["object", "null"] }
+  }
+}
