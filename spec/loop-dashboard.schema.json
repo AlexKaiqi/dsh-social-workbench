@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/loop-dashboard.schema.json",
+  "title": "LoopDashboardV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "counts", "recentPlans", "recentOutbox", "recentMetrics", "recentFeedback", "recentReviews", "generatedAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.loop-dashboard/v1" },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plans", "queued", "needsReconciliation", "published", "metricSnapshots", "feedbackItems", "reviews"],
+      "properties": {
+        "plans": { "type": "integer", "minimum": 0 },
+        "queued": { "type": "integer", "minimum": 0 },
+        "needsReconciliation": { "type": "integer", "minimum": 0 },
+        "published": { "type": "integer", "minimum": 0 },
+        "metricSnapshots": { "type": "integer", "minimum": 0 },
+        "feedbackItems": { "type": "integer", "minimum": 0 },
+        "reviews": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "recentPlans": { "type": "array", "items": { "type": "object" } },
+    "recentOutbox": { "type": "array", "items": { "type": "object" } },
+    "recentMetrics": { "type": "array", "items": { "type": "object" } },
+    "recentFeedback": { "type": "array", "items": { "type": "object", "not": { "required": ["body"] } } },
+    "recentReviews": { "type": "array", "items": { "type": "object" } },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  }
+}

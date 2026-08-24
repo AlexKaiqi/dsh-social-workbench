@@ -20,7 +20,7 @@ package dsh.client
 
 ## 自动化证据
 
-- runtime：19/19 tests passed；
+- runtime：25/25 tests passed；
 - root plugin：17/17 tests passed；
 - Client bundle 由 esbuild 从 `client/src/index.jsx` 生成；
 - capability snapshot 通过 Draft 2020-12 schema；
@@ -54,3 +54,25 @@ package dsh.client
 ## 结论
 
 首个垂直切片已经满足“用户只看能力层”的最低标准：能力、实现成熟度、当前健康、证据条件和补救动作在同一界面可见；每个 probe 故障隔离，且 UI 不复制发布状态机或获得外部写权限。
+
+## 0.1.0 回归验收
+
+2026-08-23 在 Node 24.17.0、DSH 0.1.1-rc.2 和隔离端口 3081 重新验收：
+
+- `npm run check` 为 runtime 25/25、root 17/17；兼容 0.3 spec 的 plugin checker 为 0 error、0 warning；
+- `--dump-config` 显示单一 `$DSH_HOME/social-workbench` root，并由 Host 派生 `runtime/` 与 `sidecars/`；
+- 设置页仍显示 8 张能力卡，健康刷新时间从 `22:05:33` 更新为 `22:05:45`；
+- Client 中没有登录、确认、执行或发布按钮，浏览器 console error/warning 为 0；
+- 小红书 sidecar 停止、抖音未登录时仍分别显示 blocked，没有把安装完成或历史登录冒充当前可发布。
+
+## 0.2.0 发布与反馈闭环验收
+
+2026-08-23 在 Node 24.17.0、隔离端口 3081 重新构建 Host/Client 并验收：
+
+- `npm run check` 为 runtime 31/31、root 17/17；plugin checker 的 0.3→0.2 兼容视图为 0 error、0 warning；`npm pack --dry-run` 包含全部 runtime 与 0.2.0 schema；
+- `--dump-config` 仍只装配一个 `@dsh/social-workbench`，root 为 `$DSH_HOME/social-workbench`；
+- 工作台导航为“当前闭环 / 发布 / 反馈 / 系统”，发布页展示 plan、queued、reconcile、published 与最近 outbox，反馈页展示 metric snapshot、feedback item 和 hypothesis review；
+- 系统页从 8 项扩展到 10 项能力，新增“发布计划与 Outbox”和“反馈与假设复盘”，两者的条件来自执行测试而非静态完成度；
+- 刷新时间从 `23:23:47` 更新为 `23:24:19`，证明 health snapshot 与 loop dashboard RPC 均完成真实装配；
+- Client 中没有登录、计划批准、确认、执行、对账或反馈采集按钮，浏览器 console error/warning 为 0；
+- 暗色主题首次截图暴露统计卡白底/浅色字的对比度问题；改用 DSH theme layer 后强刷复验，卡片、刷新按钮和导航均清晰可读。

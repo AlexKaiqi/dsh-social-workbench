@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import {
   consumeConfirmationRecord,
   createAttempt,
@@ -11,6 +10,20 @@ import { assertExecutionArtifactsUnchanged, assertMediaUnchanged, fingerprintFil
 
 function idFromHash(hash) {
   return hash.replace('sha256:', '')
+}
+
+const SUBMISSION_LEASE_MS = 5 * 60_000
+
+function submissionMayBeActive(attempt) {
+  const startedAt = Date.parse(attempt.submitStartedAt)
+  return Number.isFinite(startedAt) && Date.now() - startedAt < SUBMISSION_LEASE_MS
+}
+
+export function attemptIdForConfirmation(confirmationId) {
+  if (typeof confirmationId !== 'string' || !confirmationId.startsWith('confirmation_')) {
+    throw new Error('confirmationId is missing or invalid')
+  }
+  return `attempt_${confirmationId.slice('confirmation_'.length)}`
 }
 
 export class PublicationLoop {
@@ -50,42 +63,88 @@ export class PublicationLoop {
     if (!adapter) throw new Error(`no adapter configured for ${revision.platform}`)
     await assertMediaUnchanged(revision)
     await assertExecutionArtifactsUnchanged(revision)
-    const attemptId = `attempt_${randomUUID()}`
+    const attemptId = attemptIdForConfirmation(confirmationId)
 
     const consumed = await this.store.mutate('confirmations', confirmationId, (record) =>
       consumeConfirmationRecord(record, confirmationToken, revision, attemptId))
-    let attempt = createAttempt(revision, consumed.confirmationId, { attemptId })
-    await this.store.writeImmutable('attempts', attemptId, attempt)
+    let attempt = await this.store.readOptional('attempts', attemptId)
+    if (!attempt) {
+      attempt = createAttempt(revision, consumed.confirmationId, { attemptId })
+      attempt = await this.store.writeImmutable('attempts', attemptId, attempt)
+    }
+
+    const existingReceipt = await this.store.readOptional('receipts', attemptId)
+    if (existingReceipt) return existingReceipt
+
+    if (attempt.state === 'confirmed_for_submit' && Date.parse(consumed.expiresAt) <= Date.now()) {
+      attempt = await this.store.mutate('attempts', attemptId, (current) =>
+        transitionAttempt(current, 'failed', {
+          error: {
+            code: 'CONFIRMATION_RECOVERY_EXPIRED',
+            message: 'The confirmation expired before the interrupted execution could safely resume; issue a new confirmation.',
+          },
+        }))
+    }
+
+    if (attempt.state === 'submitting' && submissionMayBeActive(attempt)) {
+      throw new Error('publication attempt is already submitting')
+    }
+
+    if (attempt.state === 'submitting' || attempt.state === 'submitted') {
+      const interruptedState = attempt.state
+      attempt = await this.store.mutate('attempts', attemptId, (current) => {
+        if (current.state !== interruptedState) return current
+        return transitionAttempt(current, 'unknown', {
+          error: {
+            code: 'INTERRUPTED_AFTER_SUBMIT_STARTED',
+            message: 'A previous execution stopped after submission could have started; reconcile on the platform before retrying.',
+          },
+        })
+      })
+    }
+
+    if (attempt.state !== 'confirmed_for_submit') {
+      const receipt = createReceipt(attempt)
+      await this.store.writeImmutable('receipts', attemptId, receipt)
+      return receipt
+    }
 
     let checks = []
+    let submissionClaimed = false
     try {
       const doctor = await adapter.doctor({ liveLoginCheck: true })
       if (!doctor.ready) throw new Error('adapter is not ready or account is not logged in')
       const baseline = await adapter.baseline(revision)
+      attempt = await this.store.mutate('attempts', attemptId, (current) =>
+        transitionAttempt(current, 'submitting', { submitStartedAt: new Date().toISOString() }))
+      submissionClaimed = true
       const submission = await adapter.submit(revision, { baseline })
       if (!submission.submitted) throw new Error('adapter did not prove that submission occurred')
-      attempt = transitionAttempt(attempt, 'submitted', {
-        submittedAt: new Date().toISOString(),
-        evidenceRefs: submission.evidenceRefs ?? [],
-      })
-      attempt = await this.store.mutate('attempts', attemptId, () => attempt)
+      attempt = await this.store.mutate('attempts', attemptId, (current) =>
+        transitionAttempt(current, 'submitted', {
+          submittedAt: new Date().toISOString(),
+          evidenceRefs: submission.evidenceRefs ?? [],
+        }))
 
       const verification = await adapter.verify(revision, submission)
       checks = verification.checks ?? []
       const nextState = verification.confirmed ? 'confirmed' : 'unknown'
-      attempt = transitionAttempt(attempt, nextState, {
-        platformObject: verification.platformObject ?? null,
-        confirmationBasis: verification.confirmationBasis ?? null,
-        evidenceRefs: [...new Set([...attempt.evidenceRefs, ...(verification.confirmationEvidence ?? [])])],
-      })
-      attempt = await this.store.mutate('attempts', attemptId, () => attempt)
+      attempt = await this.store.mutate('attempts', attemptId, (current) =>
+        transitionAttempt(current, nextState, {
+          platformObject: verification.platformObject ?? null,
+          confirmationBasis: verification.confirmationBasis ?? null,
+          evidenceRefs: [...new Set([...current.evidenceRefs, ...(verification.confirmationEvidence ?? [])])],
+        }))
     } catch (error) {
+      attempt = await this.store.read('attempts', attemptId)
+      if (attempt.state === 'submitting' && !submissionClaimed && submissionMayBeActive(attempt)) throw error
       if (attempt.state === 'confirmed_for_submit') {
-        attempt = transitionAttempt(attempt, 'failed', { error: { code: 'EXECUTION_FAILED', message: error.message } })
-        attempt = await this.store.mutate('attempts', attemptId, () => attempt)
-      } else if (attempt.state === 'submitted') {
-        attempt = transitionAttempt(attempt, 'unknown', { error: { code: 'VERIFICATION_FAILED', message: error.message } })
-        attempt = await this.store.mutate('attempts', attemptId, () => attempt)
+        attempt = await this.store.mutate('attempts', attemptId, (current) =>
+          transitionAttempt(current, 'failed', { error: { code: 'EXECUTION_FAILED', message: error.message } }))
+      } else if (attempt.state === 'submitting' || attempt.state === 'submitted') {
+        const code = attempt.state === 'submitted' ? 'VERIFICATION_FAILED' : 'SUBMISSION_OUTCOME_UNKNOWN'
+        attempt = await this.store.mutate('attempts', attemptId, (current) =>
+          transitionAttempt(current, 'unknown', { error: { code, message: error.message } }))
       }
     }
 

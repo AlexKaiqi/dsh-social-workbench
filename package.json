@@ -1,9 +1,12 @@
 {
   "name": "@dsh/social-workbench",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "./dsh/index.js",
+  "bin": {
+    "dsh-social": "./runtime/src/cli.mjs"
+  },
   "exports": {
     ".": "./dsh/index.js",
     "./client": "./client/client.js",
@@ -23,7 +26,7 @@
     "README.md",
     "LICENSE"
   ],
-  "description": "Evidence-grounded social intelligence and publishing workbench for DSH, with an executable dual-platform runtime spike.",
+  "description": "Evidence-grounded social release and feedback workbench for DSH, with dual-platform planning, outbox, reconciliation, and learning lineage.",
   "license": "MIT",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
@@ -41,19 +44,20 @@
   "dsh": {
     "inventory": {
       "summary": {
-        "zh": "把已授权素材整理成证据化 brief 和小红书/抖音待批准内容包；真实发布保持用户侧一次性确认。",
-        "en": "Turns authorized material into evidence-backed briefs and approval-ready XHS/Douyin packages; live publishing remains behind user-held one-time confirmation."
+        "zh": "把已授权素材整理成证据化内容包，并管理双平台计划、outbox、对账、反馈与复盘；真实发布保持逐 revision 一次性确认。",
+        "en": "Builds evidence-backed content packages and manages dual-platform plans, outbox, reconciliation, feedback, and reviews; live publishing remains behind per-revision one-time confirmation."
       },
       "tags": [
         "social",
         "content",
         "evidence",
         "publishing",
-        "staging"
+        "staging",
+        "feedback"
       ],
       "facets": {
         "exposure": ["model", "human-ui"],
-        "capabilities": ["ingress", "knowledge", "content", "publishing", "health"],
+        "capabilities": ["ingress", "knowledge", "content", "publishing", "feedback", "health"],
         "roles": ["provider", "presentation", "policy"],
         "faces": ["host", "browser"]
       },

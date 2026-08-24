@@ -125,6 +125,7 @@ export class ContentPipeline {
       claims,
       callToAction: optionalText(input.callToAction, 'brief.callToAction'),
       constraints: stringList(input.constraints, 'brief.constraints'),
+      feedbackReviewIds: stringList(input.feedbackReviewIds, 'brief.feedbackReviewIds'),
     }
     const briefId = digestId('brief', payload)
     const existing = await this.store.readOptional('briefs', briefId)

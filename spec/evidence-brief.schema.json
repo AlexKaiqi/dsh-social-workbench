@@ -27,6 +27,7 @@
     },
     "callToAction": { "type": "string" },
     "constraints": { "type": "array", "items": { "type": "string" } },
+    "feedbackReviewIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^review_[a-f0-9]{64}$" } },
     "createdAt": { "type": "string", "format": "date-time" }
   }
 }

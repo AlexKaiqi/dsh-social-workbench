@@ -41,6 +41,7 @@ test('confirmation is bound to revision and is one-time', () => {
   const { token, record } = issueConfirmationRecord(revision, { now, ttlMs: 60_000 })
   const consumed = consumeConfirmationRecord(record, token, revision, 'attempt_one', { now })
   assert.equal(consumed.consumedByAttemptId, 'attempt_one')
+  assert.deepEqual(consumeConfirmationRecord(consumed, token, revision, 'attempt_one', { now }), consumed)
   assert.throws(() => consumeConfirmationRecord(consumed, token, revision, 'attempt_two', { now }), /already been consumed/)
 })
 
@@ -58,7 +59,8 @@ test('confirmation rejects revision drift and expiry', () => {
 
 test('confirmed needs a real object id or platform queue evidence', () => {
   const revision = createRevision(input())
-  const attempt = transitionAttempt(createAttempt(revision, 'confirmation_one'), 'submitted')
+  const submitting = transitionAttempt(createAttempt(revision, 'confirmation_one'), 'submitting')
+  const attempt = transitionAttempt(submitting, 'submitted')
   assert.throws(() => transitionAttempt(attempt, 'confirmed'), /platform object id or creator-queue evidence/)
   assert.equal(
     transitionAttempt(attempt, 'confirmed', { platformObject: { id: 'note-123' } }).state,

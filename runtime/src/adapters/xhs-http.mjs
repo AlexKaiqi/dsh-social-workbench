@@ -41,6 +41,51 @@ function noteBody(detail) {
   return note?.desc ?? note?.content ?? ''
 }
 
+function parseCount(value) {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().replaceAll(',', '')
+  const match = normalized.match(/^(\d+(?:\.\d+)?)(万|千)?$/)
+  if (!match) return null
+  const multiplier = match[2] === '万' ? 10_000 : match[2] === '千' ? 1_000 : 1
+  return Number(match[1]) * multiplier
+}
+
+function feedId(feed) {
+  return feed?.id ?? feed?.noteId ?? feed?.note_id ?? ''
+}
+
+function feedToken(feed) {
+  return feed?.xsecToken ?? feed?.xsec_token ?? ''
+}
+
+function detailParts(value) {
+  const root = unwrapData(value)
+  return {
+    note: root?.note ?? root?.data?.note ?? root,
+    comments: root?.comments?.list ?? root?.data?.comments?.list ?? [],
+  }
+}
+
+function flattenComments(comments) {
+  const output = []
+  const visit = (comment) => {
+    if (!comment || typeof comment !== 'object') return
+    if (typeof comment.content === 'string' && comment.content.trim()) {
+      output.push({
+        externalId: String(comment.id ?? ''),
+        body: comment.content.trim(),
+        observedAt: Number.isFinite(Number(comment.createTime))
+          ? new Date(Number(comment.createTime) < 1e12 ? Number(comment.createTime) * 1_000 : Number(comment.createTime)).toISOString()
+          : null,
+      })
+    }
+    for (const child of comment.subComments ?? []) visit(child)
+  }
+  for (const comment of comments ?? []) visit(comment)
+  return output
+}
+
 export class XiaohongshuHttpAdapter {
   constructor({ baseUrl = 'http://127.0.0.1:18060', token, fetchImpl = fetch, timeoutMs = 60_000 } = {}) {
     this.baseUrl = baseUrl
@@ -135,7 +180,7 @@ export class XiaohongshuHttpAdapter {
           checks,
           platformObject: confirmed ? {
             id: candidate.id,
-            url: `https://www.xiaohongshu.com/explore/${candidate.id}?xsec_token=${encodeURIComponent(candidate.xsecToken)}`,
+            url: `https://www.xiaohongshu.com/explore/${candidate.id}`,
           } : null,
         }
       }
@@ -147,6 +192,48 @@ export class XiaohongshuHttpAdapter {
       platformObject: null,
     }
   }
+
+  async collectFeedback(platformObject, { limit = 50, now = new Date() } = {}) {
+    if (!platformObject?.id) throw new Error('XHS feedback collection requires a platform object id')
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) throw new Error('XHS feedback limit must be between 1 and 200')
+    const profile = await this.request('/api/v1/user/me?tab=note')
+    const feed = findFeeds(profile).find((item) => feedId(item) === platformObject.id)
+    const xsecToken = feedToken(feed)
+    if (!xsecToken) throw new Error('XHS creator profile did not return a current access token for this post')
+    const detail = await this.request('/api/v1/feeds/detail', {
+      method: 'POST',
+      body: {
+        feed_id: platformObject.id,
+        xsec_token: xsecToken,
+        load_all_comments: true,
+        comment_config: { max_comment_items: limit, click_more_replies: false, scroll_speed: 'normal' },
+      },
+    })
+    const { note, comments } = detailParts(detail)
+    const definitions = {
+      likedCount: '小红书笔记详情页在采集时显示的点赞总数',
+      collectedCount: '小红书笔记详情页在采集时显示的收藏总数',
+      commentCount: '小红书笔记详情页在采集时显示的评论总数',
+      sharedCount: '小红书笔记详情页在采集时显示的分享总数',
+    }
+    const metrics = Object.entries(definitions).flatMap(([name, definition]) => {
+      const value = parseCount(note?.interactInfo?.[name])
+      return value == null ? [] : [{ name, value, definition, unit: 'count' }]
+    })
+    const observedAt = now.toISOString()
+    return {
+      platform: 'xiaohongshu',
+      externalId: platformObject.id,
+      observedAt,
+      metrics,
+      feedback: flattenComments(comments).map((comment) => ({
+        ...comment,
+        observedAt: comment.observedAt ?? observedAt,
+        kind: 'comment',
+      })),
+      evidenceRefs: [`xiaohongshu://note/${platformObject.id}/detail@${observedAt}`],
+    }
+  }
 }
 
-export const xhsInternals = { findFeeds, feedTitle, mediaCount, noteBody, unwrapData }
+export const xhsInternals = { findFeeds, feedTitle, mediaCount, noteBody, unwrapData, parseCount, detailParts, flattenComments }

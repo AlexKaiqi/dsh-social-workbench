@@ -78,13 +78,35 @@ test('stages one complete source-to-dual-platform package through the service', 
   assert.match(contentPackage.revisions.douyin, /^sha256:/)
   assert.match(contentPackage.marker, /^SWB-/)
 
+  const plan = await service.loopControl.createPlan({ packageId: contentPackage.packageId })
+  assertSchema(await validator('publication-plan'), plan)
+  await service.loopControl.approvePlan(plan.planId, { approvedBy: 'service-test' })
+  const outbox = await service.loopControl.enqueuePlan(plan.planId)
+  const validateOutbox = await validator('publication-outbox')
+  for (const item of outbox) assertSchema(validateOutbox, item)
+
   const status = await service.status()
-  assert.deepEqual(status.counts, { sources: 1, briefs: 1, packages: 1, revisions: 2, receipts: 0 })
+  assert.deepEqual(status.counts, {
+    sources: 1,
+    briefs: 1,
+    packages: 1,
+    revisions: 2,
+    plans: 1,
+    outbox: 2,
+    receipts: 0,
+    reconciliations: 0,
+    'metric-snapshots': 0,
+    'feedback-items': 0,
+    'hypothesis-reviews': 0,
+  })
   const snapshot = await service.capabilitySnapshot()
   assertSchema(await validator('capability-snapshot'), snapshot)
   assert.equal(snapshot.capabilities.some(item => item.id === 'content.dual-platform-package' && item.health.state === 'ready'), true)
   assert.deepEqual(await service.read('packages', contentPackage.packageId), contentPackage)
   assert.throws(() => service.read('confirmations', 'anything'), /not model-readable/)
+  const dashboard = await service.loopDashboard()
+  assertSchema(await validator('loop-dashboard'), dashboard)
+  assert.equal(dashboard.counts.plans, 1)
 })
 
 test('rejects missing Workspace, traversal, absolute paths, and escaping symlinks', async () => {

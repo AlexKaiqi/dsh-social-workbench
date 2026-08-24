@@ -13,7 +13,7 @@ export const SOCIAL_WORKBENCH_TOOL = {
     },
     collection: {
       type: 'string',
-      enum: ['sources', 'briefs', 'packages', 'revisions', 'receipts'],
+      enum: ['sources', 'briefs', 'packages', 'revisions', 'plans', 'outbox', 'receipts', 'reconciliations', 'metric-snapshots', 'feedback-items', 'hypothesis-reviews'],
       description: 'Immutable collection for action=read.',
     },
     id: { type: 'string', description: 'Stable object id for action=read.' },

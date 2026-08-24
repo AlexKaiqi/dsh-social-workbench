@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/reconciliation.schema.json",
+  "title": "PublicationReconciliationV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reconciliationId", "outboxId", "planId", "itemId", "receiptId", "platform", "outcome", "externalObject", "evidenceRefs", "note", "observedAt", "recordedAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.reconciliation/v1" },
+    "reconciliationId": { "type": "string", "pattern": "^reconciliation_[a-f0-9]{64}$" },
+    "outboxId": { "type": "string", "pattern": "^outbox_[a-f0-9]{64}$" },
+    "planId": { "type": "string", "pattern": "^plan_[a-f0-9]{64}$" },
+    "itemId": { "type": "string", "pattern": "^item_[a-f0-9]{64}$" },
+    "receiptId": { "type": ["string", "null"] },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "outcome": { "enum": ["published", "not-found", "manual-action-required"] },
+    "externalObject": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "evidenceRefs": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "note": { "type": ["string", "null"] },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "recordedAt": { "type": "string", "format": "date-time" }
+  }
+}

@@ -2,10 +2,23 @@ import { readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { ContentPipeline } from '../runtime/src/content-pipeline.mjs'
 import { PublicationLoop } from '../runtime/src/orchestrator.mjs'
+import { SocialLoopControl } from '../runtime/src/loop-control.mjs'
 import { LoopStore } from '../runtime/src/store.mjs'
 import { createCapabilityRegistry } from './capabilities.js'
 
-const READABLE_COLLECTIONS = new Set(['sources', 'briefs', 'packages', 'revisions', 'receipts'])
+const READABLE_COLLECTIONS = new Set([
+  'sources',
+  'briefs',
+  'packages',
+  'revisions',
+  'plans',
+  'outbox',
+  'receipts',
+  'reconciliations',
+  'metric-snapshots',
+  'feedback-items',
+  'hypothesis-reviews',
+])
 
 function inside(root, candidate) {
   const relative = path.relative(root, candidate)
@@ -14,15 +27,7 @@ function inside(root, candidate) {
 
 export function resolveSocialWorkbenchRoot(value, env = process.env) {
   const dshHome = env.DSH_HOME || path.join(env.HOME || process.cwd(), '.dsh')
-  const expanded = String(value || '$DSH_HOME/social-workbench/runtime')
-    .replaceAll('$DSH_HOME', dshHome)
-    .replaceAll('$HOME', env.HOME || process.cwd())
-  return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(process.cwd(), expanded))
-}
-
-export function resolveSocialWorkbenchSidecarRoot(value, env = process.env) {
-  const dshHome = env.DSH_HOME || path.join(env.HOME || process.cwd(), '.dsh')
-  const expanded = String(value || '$DSH_HOME/social-workbench/sidecars')
+  const expanded = String(value || '$DSH_HOME/social-workbench')
     .replaceAll('$DSH_HOME', dshHome)
     .replaceAll('$HOME', env.HOME || process.cwd())
   return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(process.cwd(), expanded))
@@ -38,6 +43,11 @@ export class SocialWorkbenchService {
     this.store = new LoopStore(root)
     this.publicationLoop = new PublicationLoop({ store: this.store })
     this.contentPipeline = new ContentPipeline({ store: this.store, publicationLoop: this.publicationLoop })
+    this.loopControl = new SocialLoopControl({
+      store: this.store,
+      publicationLoop: this.publicationLoop,
+      contentPipeline: this.contentPipeline,
+    })
     this.capabilityRegistry = createCapabilityRegistry({ root, sidecarRoot, xiaohongshuUrl, fetchImpl, clock })
   }
 
@@ -63,6 +73,11 @@ export class SocialWorkbenchService {
   async capabilitySnapshot() {
     await this.store.init()
     return this.capabilityRegistry.snapshot({ activity: await this.activity() })
+  }
+
+  async loopDashboard() {
+    await this.store.init()
+    return this.loopControl.dashboard()
   }
 
   async status() {

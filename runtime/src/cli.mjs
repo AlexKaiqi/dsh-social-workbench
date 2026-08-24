@@ -8,6 +8,7 @@ import { XiaohongshuHttpAdapter } from './adapters/xhs-http.mjs'
 import { PublicationLoop } from './orchestrator.mjs'
 import { LoopStore } from './store.mjs'
 import { ContentPipeline } from './content-pipeline.mjs'
+import { SocialLoopControl } from './loop-control.mjs'
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const projectRoot = path.resolve(runtimeRoot, '..')
@@ -57,6 +58,18 @@ function douyinAdapter(sidecars) {
   })
 }
 
+async function readInput() {
+  const inputPath = path.resolve(requiredOption('--input'))
+  return { input: JSON.parse(await readFile(inputPath, 'utf8')), inputPath }
+}
+
+function adapters(resolved) {
+  return {
+    xiaohongshu: xhsAdapter(),
+    douyin: douyinAdapter(resolved.sidecars),
+  }
+}
+
 async function main() {
   const command = process.argv[2]
   const platform = process.argv[3]
@@ -64,31 +77,28 @@ async function main() {
   const store = new LoopStore(resolved.runtimeState)
   const publicationLoop = new PublicationLoop({ store })
   const contentPipeline = new ContentPipeline({ store, publicationLoop })
+  const loopControl = new SocialLoopControl({ store, publicationLoop, contentPipeline })
 
   if (command === 'ingest') {
-    const inputPath = path.resolve(requiredOption('--input'))
-    const input = JSON.parse(await readFile(inputPath, 'utf8'))
+    const { input, inputPath } = await readInput()
     process.stdout.write(`${JSON.stringify(await contentPipeline.ingest(input, { baseDir: path.dirname(inputPath) }), null, 2)}\n`)
     return
   }
 
   if (command === 'brief') {
-    const inputPath = path.resolve(requiredOption('--input'))
-    const input = JSON.parse(await readFile(inputPath, 'utf8'))
+    const { input } = await readInput()
     process.stdout.write(`${JSON.stringify(await contentPipeline.createBrief(input), null, 2)}\n`)
     return
   }
 
   if (command === 'package') {
-    const inputPath = path.resolve(requiredOption('--input'))
-    const input = JSON.parse(await readFile(inputPath, 'utf8'))
+    const { input } = await readInput()
     process.stdout.write(`${JSON.stringify(await contentPipeline.buildPackage(input), null, 2)}\n`)
     return
   }
 
   if (command === 'prepare') {
-    const inputPath = path.resolve(requiredOption('--input'))
-    const input = JSON.parse(await readFile(inputPath, 'utf8'))
+    const { input, inputPath } = await readInput()
     const loop = new PublicationLoop({ store })
     process.stdout.write(`${JSON.stringify(await loop.prepare(input, { baseDir: path.dirname(inputPath) }), null, 2)}\n`)
     return
@@ -103,6 +113,91 @@ async function main() {
       ...result,
       warning: 'The token is shown once. Put it in DSH_SOCIAL_CONFIRMATION_TOKEN; do not save it in Git or chat.',
     }, null, 2)}\n`)
+    return
+  }
+
+  if (command === 'plan') {
+    const { input } = await readInput()
+    process.stdout.write(`${JSON.stringify(await loopControl.createPlan(input), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'approve-plan') {
+    const result = await loopControl.approvePlan(requiredOption('--plan'), {
+      approvedBy: option('--approved-by') ?? 'local-user',
+      ttlMs: Number(option('--ttl-ms') ?? 24 * 60 * 60_000),
+    })
+    process.stdout.write(`${JSON.stringify({
+      ...result,
+      warning: 'This approval only permits local outbox staging. Each revision still requires its own one-time confirmation before execution.',
+    }, null, 2)}\n`)
+    return
+  }
+
+  if (command === 'enqueue-plan') {
+    process.stdout.write(`${JSON.stringify(await loopControl.enqueuePlan(requiredOption('--plan')), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'execute-item') {
+    const token = process.env.DSH_SOCIAL_CONFIRMATION_TOKEN
+    if (!token) throw new Error('DSH_SOCIAL_CONFIRMATION_TOKEN is required and is never accepted as a CLI argument')
+    const executingLoop = new PublicationLoop({ store, adapters: adapters(resolved) })
+    const executingControl = new SocialLoopControl({ store, publicationLoop: executingLoop, contentPipeline })
+    const receipt = await executingControl.executeItem({
+      outboxId: requiredOption('--outbox'),
+      confirmationId: requiredOption('--confirmation-id'),
+      confirmationToken: token,
+    })
+    process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`)
+    if (receipt.state !== 'confirmed') process.exitCode = 2
+    return
+  }
+
+  if (command === 'reconcile') {
+    const { input } = await readInput()
+    process.stdout.write(`${JSON.stringify(await loopControl.reconcile(input), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'metric') {
+    const { input } = await readInput()
+    process.stdout.write(`${JSON.stringify(await loopControl.recordMetric(input), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'feedback') {
+    const { input } = await readInput()
+    process.stdout.write(`${JSON.stringify(await loopControl.recordFeedback(input), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'collect') {
+    if (platform !== 'xiaohongshu') throw new Error('automatic feedback collection is currently verified only for xiaohongshu')
+    const collector = xhsAdapter()
+    const doctor = await collector.doctor({ liveLoginCheck: true })
+    if (!doctor.ready) throw new Error('Xiaohongshu sidecar is not ready or the user is not logged in')
+    process.stdout.write(`${JSON.stringify(await loopControl.collectFeedback(
+      requiredOption('--outbox'),
+      collector,
+      { limit: Number(option('--limit') ?? 50) },
+    ), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'review') {
+    const { input } = await readInput()
+    process.stdout.write(`${JSON.stringify(await loopControl.createReview(input), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'next-brief') {
+    process.stdout.write(`${JSON.stringify(await loopControl.createNextBrief(requiredOption('--review')), null, 2)}\n`)
+    return
+  }
+
+  if (command === 'dashboard') {
+    process.stdout.write(`${JSON.stringify(await loopControl.dashboard(), null, 2)}\n`)
     return
   }
 
@@ -134,11 +229,7 @@ async function main() {
     if (!['xiaohongshu', 'douyin'].includes(platform)) throw new Error('execute requires platform xiaohongshu or douyin')
     const token = process.env.DSH_SOCIAL_CONFIRMATION_TOKEN
     if (!token) throw new Error('DSH_SOCIAL_CONFIRMATION_TOKEN is required and is never accepted as a CLI argument')
-    const adapters = {
-      xiaohongshu: xhsAdapter(),
-      douyin: douyinAdapter(resolved.sidecars),
-    }
-    const loop = new PublicationLoop({ store, adapters })
+    const loop = new PublicationLoop({ store, adapters: adapters(resolved) })
     const receipt = await loop.execute({
       revisionHash: requiredOption('--revision'),
       confirmationId: requiredOption('--confirmation-id'),
@@ -155,6 +246,17 @@ async function main() {
   process.stdout.write(`  social package --input <package.json>\n`)
   process.stdout.write(`  social prepare --input <revision.json>\n`)
   process.stdout.write(`  social confirm --revision <sha256:...>\n`)
+  process.stdout.write(`  social plan --input <plan.json>\n`)
+  process.stdout.write(`  social approve-plan --plan <plan_id> [--ttl-ms <ms>]\n`)
+  process.stdout.write(`  social enqueue-plan --plan <plan_id>\n`)
+  process.stdout.write(`  social execute-item --outbox <outbox_id> --confirmation-id <id>\n`)
+  process.stdout.write(`  social reconcile --input <reconciliation.json>\n`)
+  process.stdout.write(`  social metric --input <metric-snapshot.json>\n`)
+  process.stdout.write(`  social feedback --input <feedback.json>\n`)
+  process.stdout.write(`  social collect xiaohongshu --outbox <outbox_id> [--limit <1-200>]\n`)
+  process.stdout.write(`  social review --input <hypothesis-review.json>\n`)
+  process.stdout.write(`  social next-brief --review <review_id>\n`)
+  process.stdout.write(`  social dashboard\n`)
   process.stdout.write(`  social doctor <xiaohongshu|douyin> [--live-login-check]\n`)
   process.stdout.write(`  social dry-run douyin --revision <sha256:...>\n`)
   process.stdout.write(`  social execute <xiaohongshu|douyin> --revision <sha256:...> --confirmation-id <id>\n`)

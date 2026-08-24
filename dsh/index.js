@@ -1,18 +1,18 @@
+import path from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { HELP, VERSION } from './help.js'
 import { PROMPT } from './model/prompt.js'
 import { SOCIAL_WORKBENCH_OUTPUT, SOCIAL_WORKBENCH_TOOL } from './model/tool-surface.js'
 import { registerWorkbenchRpc, RPC_CHANNEL } from './rpc.js'
-import { resolveSocialWorkbenchRoot, resolveSocialWorkbenchSidecarRoot, SocialWorkbenchService } from './service.js'
+import { resolveSocialWorkbenchRoot, SocialWorkbenchService } from './service.js'
 
 export const name = 'social-workbench'
 export const inject = ['tools', 'systemPrompt', 'connection']
 
 export const Config = z.object({
   enabled: z.boolean().default(true),
-  root: z.string().default('$DSH_HOME/social-workbench/runtime'),
-  sidecarRoot: z.string().default('$DSH_HOME/social-workbench/sidecars'),
+  root: z.string().default('$DSH_HOME/social-workbench'),
   xiaohongshuUrl: z.string().default('http://127.0.0.1:18060'),
 })
 
@@ -20,7 +20,6 @@ export function validateConfig(config) {
   if (!config || typeof config !== 'object') throw new Error('Social Workbench config is required')
   if (config.enabled === false) return
   if (typeof config.root !== 'string' || !config.root.trim()) throw new Error('Social Workbench root is required')
-  if (typeof config.sidecarRoot !== 'string' || !config.sidecarRoot.trim()) throw new Error('Social Workbench sidecarRoot is required')
   let parsed
   try { parsed = new URL(config.xiaohongshuUrl) } catch { throw new Error('Social Workbench xiaohongshuUrl must be a URL') }
   if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname)) {
@@ -60,15 +59,15 @@ function registerTool(ctx) {
 export function apply(ctx, config) {
   const resolvedConfig = {
     enabled: true,
-    root: '$DSH_HOME/social-workbench/runtime',
-    sidecarRoot: '$DSH_HOME/social-workbench/sidecars',
+    root: '$DSH_HOME/social-workbench',
     xiaohongshuUrl: 'http://127.0.0.1:18060',
     ...config,
   }
   validateConfig(resolvedConfig)
   if (resolvedConfig.enabled === false) return
-  const service = new SocialWorkbenchService(resolveSocialWorkbenchRoot(resolvedConfig.root), {
-    sidecarRoot: resolveSocialWorkbenchSidecarRoot(resolvedConfig.sidecarRoot),
+  const workbenchRoot = resolveSocialWorkbenchRoot(resolvedConfig.root)
+  const service = new SocialWorkbenchService(path.join(workbenchRoot, 'runtime'), {
+    sidecarRoot: path.join(workbenchRoot, 'sidecars'),
     xiaohongshuUrl: resolvedConfig.xiaohongshuUrl,
   })
   ctx.provide('socialWorkbench', service)
@@ -90,5 +89,4 @@ export {
   VERSION,
   RPC_CHANNEL,
   resolveSocialWorkbenchRoot,
-  resolveSocialWorkbenchSidecarRoot,
 }

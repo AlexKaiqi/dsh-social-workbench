@@ -95,6 +95,7 @@ test('XHS adapter forces private visibility and confirms only a new exact feed',
   const verification = await adapter.verify(revision, submission, { timeoutMs: 100, pollMs: 1 })
   assert.equal(verification.confirmed, true)
   assert.equal(verification.platformObject.id, 'new-note')
+  assert.equal(verification.platformObject.url.includes('xsec_token'), false)
 })
 
 test('XHS adapter reports unknown instead of success when no new feed appears', async () => {
@@ -107,4 +108,33 @@ test('XHS adapter reports unknown instead of success when no new feed appears', 
   )
   assert.equal(result.confirmed, false)
   assert.equal(result.checks[0].result, 'unknown')
+})
+
+test('XHS feedback collector preserves raw metric definitions and omits user identity', async () => {
+  const calls = []
+  const fetchImpl = async (url, init = {}) => {
+    calls.push({ url, init })
+    const pathname = new URL(url).pathname
+    if (pathname === '/api/v1/user/me') {
+      return jsonResponse({ success: true, data: { feeds: [{ id: 'note-feedback', xsecToken: 'ephemeral-token' }] } })
+    }
+    if (pathname === '/api/v1/feeds/detail') {
+      return jsonResponse({ success: true, data: {
+        note: { interactInfo: { likedCount: '1.2万', collectedCount: '86', commentCount: '2', sharedCount: '3' } },
+        comments: { list: [{ id: 'comment-1', content: '请补充步骤', createTime: 1787443200, userInfo: { userId: 'must-not-leak' }, subComments: [{ id: 'reply-1', content: '同问', createTime: 1787443260000 }] }] },
+      } })
+    }
+    throw new Error(`unexpected request: ${url}`)
+  }
+  const adapter = new XiaohongshuHttpAdapter({ fetchImpl })
+  const collected = await adapter.collectFeedback(
+    { id: 'note-feedback' },
+    { limit: 25, now: new Date('2026-08-23T12:00:00.000Z') },
+  )
+  assert.equal(collected.metrics.find((item) => item.name === 'likedCount').value, 12_000)
+  assert.equal(collected.feedback.length, 2)
+  assert.equal(JSON.stringify(collected).includes('must-not-leak'), false)
+  assert.equal(JSON.stringify(collected).includes('ephemeral-token'), false)
+  const detailBody = JSON.parse(calls.find((item) => new URL(item.url).pathname === '/api/v1/feeds/detail').init.body)
+  assert.deepEqual(detailBody.comment_config, { max_comment_items: 25, click_more_replies: false, scroll_speed: 'normal' })
 })

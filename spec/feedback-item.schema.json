@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/feedback-item.schema.json",
+  "title": "FeedbackItemV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feedbackId", "outboxId", "planId", "itemId", "receiptId", "platform", "kind", "body", "externalId", "observedAt", "source", "privacy", "recordedAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.feedback-item/v1" },
+    "feedbackId": { "type": "string", "pattern": "^feedback_[a-f0-9]{64}$" },
+    "outboxId": { "type": "string", "pattern": "^outbox_[a-f0-9]{64}$" },
+    "planId": { "type": "string", "pattern": "^plan_[a-f0-9]{64}$" },
+    "itemId": { "type": "string", "pattern": "^item_[a-f0-9]{64}$" },
+    "receiptId": { "type": ["string", "null"] },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "kind": { "enum": ["comment", "question", "complaint", "praise", "manual-note"] },
+    "body": { "type": "string", "minLength": 1 },
+    "externalId": { "type": ["string", "null"] },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "evidenceRefs"],
+      "properties": {
+        "kind": { "enum": ["official-api", "creator-dashboard", "manual-export", "manual-entry"] },
+        "evidenceRefs": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "privacy": { "const": "platform-local-no-cross-platform-identity" },
+    "recordedAt": { "type": "string", "format": "date-time" }
+  }
+}

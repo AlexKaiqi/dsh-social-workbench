@@ -37,7 +37,10 @@
       { "file": "test/service.test.mjs", "layer": "L2" },
       { "file": "test/capability-registry.test.mjs", "layer": "L0" },
       { "file": "test/health-probes.test.mjs", "layer": "L2" },
-      { "file": "test/rpc.test.mjs", "layer": "L1" }
+      { "file": "test/rpc.test.mjs", "layer": "L1" },
+      { "file": "runtime/test/store.test.mjs", "layer": "L2" },
+      { "file": "runtime/test/loop-control.test.mjs", "layer": "L2" },
+      { "file": "runtime/test/loop.test.mjs", "layer": "L2" }
     ]
   },
   "config": {
@@ -46,11 +49,21 @@
     "rootField": "root",
     "assembly": { "file": "dsh/index.js" }
   },
+  "cli": {
+    "entrypoint": "runtime/src/cli.mjs"
+  },
   "contracts": [
     { "name": "social-workbench-source", "file": "spec/source-bundle.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-brief", "file": "spec/evidence-brief.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-package", "file": "spec/content-package.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-plan", "file": "spec/publication-plan.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-outbox", "file": "spec/publication-outbox.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-receipt", "file": "spec/publication-receipt.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-reconciliation", "file": "spec/reconciliation.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-metric-snapshot", "file": "spec/metric-snapshot.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-feedback-item", "file": "spec/feedback-item.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-hypothesis-review", "file": "spec/hypothesis-review.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-loop-dashboard", "file": "spec/loop-dashboard.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-capability-snapshot", "file": "spec/capability-snapshot.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-capability-rpc", "file": "spec/rpc-contract.json", "versionField": "version" }
   ]

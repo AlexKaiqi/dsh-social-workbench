@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/publication-outbox.schema.json",
+  "title": "PublicationOutboxV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "outboxId", "planId", "itemId", "platform", "accountRef", "revisionHash", "deliveryMode", "scheduledAt", "idempotencyKey", "state", "attemptId", "receiptId", "reconciliationId", "error", "createdAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.outbox/v1" },
+    "outboxId": { "type": "string", "pattern": "^outbox_[a-f0-9]{64}$" },
+    "planId": { "type": "string", "pattern": "^plan_[a-f0-9]{64}$" },
+    "itemId": { "type": "string", "pattern": "^item_[a-f0-9]{64}$" },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "accountRef": { "type": "string", "minLength": 1 },
+    "revisionHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "deliveryMode": { "enum": ["official-api", "delegated-service", "browser-assisted", "manual-handoff"] },
+    "scheduledAt": { "type": ["string", "null"], "format": "date-time" },
+    "idempotencyKey": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "state": { "enum": ["ready-for-confirmation", "executing", "published", "manual-action-required", "terminal-error"] },
+    "attemptId": { "type": ["string", "null"] },
+    "receiptId": { "type": ["string", "null"] },
+    "reconciliationId": { "type": ["string", "null"] },
+    "error": { "type": ["object", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

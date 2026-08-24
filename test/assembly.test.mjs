@@ -23,7 +23,8 @@ function harness() {
 
 test('assembles one staging service, one prompt, and one bounded tool', async () => {
   const state = harness()
-  apply(state.ctx, { enabled: true, root: mkdtempSync(path.join(tmpdir(), 'dsh-social-assembly-')) })
+  const root = mkdtempSync(path.join(tmpdir(), 'dsh-social-assembly-'))
+  apply(state.ctx, { enabled: true, root })
   assert.deepEqual(state.provided.map((row) => row.name), ['socialWorkbench'])
   assert.deepEqual(state.sections.map((row) => row.name), ['tool:social-workbench'])
   assert.deepEqual(state.tools.map((row) => row.name), ['social_workbench'])
@@ -35,6 +36,7 @@ test('assembles one staging service, one prompt, and one bounded tool', async ()
   assert.equal(typeof rpcDispose, 'function')
   assert.equal(state.rpc[0].channel, '/dsh-social-workbench')
   assert.equal(state.rpc[0].options.authority, 'trusted-host')
+  assert.equal(state.ctx.socialWorkbench.store.root, path.join(root, 'runtime'))
 })
 
 test('disabled and invalid configurations register no capabilities', () => {
@@ -46,8 +48,7 @@ test('disabled and invalid configurations register no capabilities', () => {
   assert.throws(() => apply(invalid.ctx, { enabled: true, root: '' }), /root is required/)
   assert.equal(invalid.provided.length + invalid.sections.length + invalid.tools.length, 0)
   assert.throws(() => validateConfig(null), /config is required/)
-  assert.throws(() => validateConfig({ enabled: true, root: '/tmp/state', sidecarRoot: '', xiaohongshuUrl: 'http://127.0.0.1:18060' }), /sidecarRoot is required/)
-  assert.throws(() => validateConfig({ enabled: true, root: '/tmp/state', sidecarRoot: '/tmp/sidecars', xiaohongshuUrl: 'https://example.com' }), /loopback HTTP URL/)
+  assert.throws(() => validateConfig({ enabled: true, root: '/tmp/state', xiaohongshuUrl: 'https://example.com' }), /loopback HTTP URL/)
 })
 
 test('tool execution returns status but cannot dispatch undeclared operations', async () => {

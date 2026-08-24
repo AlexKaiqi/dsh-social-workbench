@@ -13,7 +13,7 @@
 - revision、媒体与执行 manifest 文件哈希、一次性批准、attempt、receipt 与 `unknown` 状态；
 - 小红书本人主页/详情 verifier；
 - 抖音 submit + cover + private visibility + creator queue 四项 verifier；
-- patch 在全新 checkout 上复现，31 tests + 4 subtests 通过；工作台 runtime 19/19 tests、DSH 插件与 schema 层 9/9 tests 通过。
+- patch 在全新 checkout 上复现，31 tests + 4 subtests 通过；工作台 runtime 25/25 tests、DSH 插件与 schema 层 17/17 tests 通过。
 - 小红书本人账号登录态、推荐流读取和本人主页发布基线已在真实页面只读验证；当前固定版本必须使用可见浏览器模式。
 - 本地合成素材重复 `prepare` 得到相同 revision hash；一次性确认可签发，缺少 token 的执行会在调用平台前拒绝。
 
@@ -185,7 +185,7 @@ npm run social -- execute xiaohongshu \
 unset DSH_SOCIAL_CONFIRMATION_TOKEN
 ```
 
-抖音把平台名换成 `douyin`。一次性 token 在开始 attempt 时消耗；若提交前失败，receipt 为 `failed`；若提交已发生但反查失败，receipt 为 `unknown`。
+抖音把平台名换成 `douyin`。一次性 token 在开始 attempt 时消耗，attempt ID 由 confirmation 确定性派生：确认已消费但 attempt 尚未落盘时可安全续接，重复执行只返回已有 receipt，不会再次提交。若提交前失败，receipt 为 `failed`；若已进入提交阶段后中断或反查失败，receipt 为 `unknown`，必须先人工对账。
 
 ## 8. 两个平台的 confirmed 条件
 
@@ -218,7 +218,7 @@ unset DSH_SOCIAL_CONFIRMATION_TOKEN
 
 在 macOS arm64、Node 24.17.0、Python 3.12.13 上：
 
-- `npm run check`：runtime 19/19、DSH plugin/schema 9/9 tests passed；
+- `npm run check`：runtime 25/25、DSH plugin/schema 17/17 tests passed；
 - `broadcast-kit` 原始固定 commit：28 tests + 4 subtests passed；
 - 应用 Social Workbench patch：31 tests + 4 subtests passed；
 - patch 在新的 checkout 上 `git apply --check` 和完整测试通过；

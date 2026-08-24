@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/metric-snapshot.schema.json",
+  "title": "MetricSnapshotV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "snapshotId", "outboxId", "planId", "itemId", "receiptId", "reconciliationId", "platform", "accountRef", "metrics", "window", "observedAt", "source", "mappingVersion", "recordedAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.metric-snapshot/v1" },
+    "snapshotId": { "type": "string", "pattern": "^metric_[a-f0-9]{64}$" },
+    "outboxId": { "type": "string", "pattern": "^outbox_[a-f0-9]{64}$" },
+    "planId": { "type": "string", "pattern": "^plan_[a-f0-9]{64}$" },
+    "itemId": { "type": "string", "pattern": "^item_[a-f0-9]{64}$" },
+    "receiptId": { "type": ["string", "null"] },
+    "reconciliationId": { "type": ["string", "null"] },
+    "platform": { "enum": ["xiaohongshu", "douyin"] },
+    "accountRef": { "type": "string", "minLength": 1 },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value", "definition"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "value": { "type": "number", "minimum": 0 },
+          "definition": { "type": "string", "minLength": 1 },
+          "unit": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" }
+      }
+    },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "source": { "$ref": "#/$defs/source" },
+    "mappingVersion": { "type": "string", "minLength": 1 },
+    "recordedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "evidenceRefs"],
+      "properties": {
+        "kind": { "enum": ["official-api", "creator-dashboard", "manual-export", "manual-entry"] },
+        "evidenceRefs": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 一个面向 DSH 的“社会信息与内容工作台”研究项目：从多个公开或已授权来源获取信息，保留证据，挖掘需求信号，形成内容 brief 和平台变体，经人工批准后发布，再把表现数据回流到下一轮判断。
 
-> 状态：Research complete / executable Host + Client capability workbench + dual-platform walking skeleton，创建于 2026-08-23。仓库已有可见能力/健康工作台、DSH 模型侧素材—brief—内容包装配、发布事实核心和固定 sidecar 安装器；真实发布仍要求用户登录、私密可见性和逐次一次性确认。
+> 状态：0.2.0 executable release + feedback loop，创建于 2026-08-23。仓库已有可见能力/健康工作台、DSH 模型侧素材—brief—内容包装配、发布计划与 outbox、未知结果对账、追加式反馈账本、假设复盘和固定 sidecar 安装器；真实发布仍要求用户登录、私密可见性和逐 revision 一次性确认。
 
 ## 结论先行
 
@@ -38,6 +38,7 @@
 - [双平台开源执行器固定版本审计](docs/OPEN_SOURCE_DUAL_PLATFORM_AUDIT.md)
 - [双平台运行手册](docs/DUAL_PLATFORM_RUNBOOK.md)
 - [能力工作台真实装配与浏览器验收](docs/WORKBENCH_ACCEPTANCE.md)
+- [发布管理与反馈闭环](docs/RELEASE_FEEDBACK_LOOP.md)
 - [工作台操作面与共享浏览器决策](docs/decisions/0006-operating-surface-and-browser.md)
 - [八条独立研究问题](docs/research/README.md)
 - [架构推导](docs/ARCHITECTURE.md)
@@ -64,15 +65,16 @@
 ## 当前可运行切片
 
 - `dsh/`：Cordis Host staging service、模型提示和有界工具；工具只有 `ingest/create_brief/build_package/read/status/help`，不暴露登录、确认或发布。
-- `client/`：DSH Session 中的只读 Social Workbench view；主屏围绕当前闭环、流水线、下一步和平台执行，完整能力 conditions 下沉到“系统”视图。
+- `client/`：DSH Session 中的只读 Social Workbench view；分为当前闭环、发布、反馈和系统，Client 不持有登录、批准、确认、执行或反馈写入权限。
 - `spec/capability-snapshot.schema.json`：Host 与 Client 的版本化能力快照；实现成熟度与当前健康状态分开表达。
-- `runtime/`：不可变 revision、媒体/执行 manifest SHA-256、一次性确认、attempt/receipt 状态机；19 个执行层测试通过。
+- `runtime/`：不可变 revision、发布计划、幂等 outbox、媒体/执行 manifest SHA-256、一次性确认、原子持久化、崩溃恢复、attempt/receipt、evidence-only reconciliation、追加式 metric/feedback 和 review→brief lineage。
 - `third_party/sidecars.json`：小红书与抖音执行器的固定 commit 和许可证清单。
 - `scripts/bootstrap-sidecars.mjs`：幂等安装、固定 commit、补丁哈希、Go/Python/Chromium/ffmpeg 构建；不会登录或发布。
 - 小红书 adapter：强制测试私密可见、发布前本人主页基线、发布后新增 feed 与详情反查。
+- 小红书反馈采集：用户侧命令从已确认发布对象读取原始互动计数与评论，短期访问参数不进入 receipt 或反馈账本。
 - 抖音 adapter：只调用严格平台 CLI，要求 submit、封面、私密可见性和创作者队列全部通过。
 
-根级契约、Host、RPC、probe 与 Client 测试另有 17 个。运行 `npm run check`；进一步操作见 [双平台运行手册](docs/DUAL_PLATFORM_RUNBOOK.md)。
+运行 `npm run check`；真实执行见[双平台运行手册](docs/DUAL_PLATFORM_RUNBOOK.md)，发布与反馈账本见[发布管理与反馈闭环](docs/RELEASE_FEEDBACK_LOOP.md)。
 
 ## 当前建议
 
@@ -83,4 +85,4 @@
 
 ## 当前 DSH 装配边界
 
-`plugin-spec.json` 声明已经完成的 Host staging 与只读 Client 工作台事实：模型提示、一个 staging 工具、本地不可变对象写入、健康探测 RPC 和版本化 JSON 契约。Social Workbench 通过 `conversation.view` 成为 Session 工作面；可见浏览器由 profile 组合的 Browser Use 插件持有，同一 Session 的用户与 Agent 共享页面，不把 Cookie 交给本插件。真实发布仍没有注册成模型工具；Client 只接收不含凭据的 snapshot，也不持有确认或发布权限。
+`plugin-spec.json` 声明已经完成的 Host staging 与只读 Client 工作台事实：模型提示、一个 staging/ledger-read 工具、本地 canonical 对象写入、健康与账本 RPC 和版本化 JSON 契约。Social Workbench 通过 `conversation.view` 成为 Session 工作面；可见浏览器由 profile 组合的 Browser Use 插件持有，同一 Session 的用户与 Agent 共享页面，不把 Cookie 交给本插件。计划批准、outbox 入队、真实发布、对账和反馈写入都没有注册成模型工具；Client 也不持有这些权限。

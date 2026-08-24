@@ -4,7 +4,8 @@ export const PLATFORMS = new Set(['xiaohongshu', 'douyin'])
 export const VISIBILITIES = new Set(['private', 'friends', 'public'])
 
 const TRANSITIONS = new Map([
-  ['confirmed_for_submit', new Set(['submitted', 'failed', 'cancelled'])],
+  ['confirmed_for_submit', new Set(['submitting', 'failed', 'cancelled'])],
+  ['submitting', new Set(['submitted', 'unknown'])],
   ['submitted', new Set(['confirmed', 'failed', 'unknown'])],
   ['confirmed', new Set()],
   ['cancelled', new Set()],
@@ -87,12 +88,15 @@ export function issueConfirmationRecord(revision, { ttlMs = 10 * 60_000, now = n
 
 export function consumeConfirmationRecord(record, token, revision, attemptId, { now = new Date() } = {}) {
   assertSafeId(attemptId, 'attemptId')
-  if (record.consumedAt) throw new Error('confirmation token has already been consumed')
-  if (Date.parse(record.expiresAt) <= now.getTime()) throw new Error('confirmation token has expired')
   if (record.tokenHash !== sha256(token)) throw new Error('confirmation token is invalid')
   for (const key of ['revisionHash', 'platform', 'accountRef', 'visibility']) {
     if (record[key] !== revision[key]) throw new Error(`confirmation does not match revision ${key}`)
   }
+  if (record.consumedAt) {
+    if (record.consumedByAttemptId === attemptId) return record
+    throw new Error('confirmation token has already been consumed')
+  }
+  if (Date.parse(record.expiresAt) <= now.getTime()) throw new Error('confirmation token has expired')
   return { ...record, consumedAt: now.toISOString(), consumedByAttemptId: attemptId }
 }
 

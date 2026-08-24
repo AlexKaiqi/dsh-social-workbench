@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "channel": "/dsh-social-workbench",
   "authority": "trusted-host",
   "endpoints": {
@@ -11,6 +11,10 @@
     "refresh-health": {
       "request": { "type": "object", "additionalProperties": false },
       "response": "Result<CapabilitySnapshot>"
+    },
+    "loop-dashboard": {
+      "request": { "type": "object", "additionalProperties": false },
+      "response": "Result<LoopDashboard>"
     }
   },
   "forbiddenClientOperations": ["login", "confirm", "execute", "publish", "delete-cookies"]

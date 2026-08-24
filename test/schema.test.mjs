@@ -13,6 +13,13 @@ test('every executable closed-loop contract compiles as Draft 2020-12 with a uni
     'publication-revision.schema.json',
     'publication-confirmation.schema.json',
     'publication-receipt.schema.json',
+    'publication-plan.schema.json',
+    'publication-outbox.schema.json',
+    'reconciliation.schema.json',
+    'metric-snapshot.schema.json',
+    'feedback-item.schema.json',
+    'hypothesis-review.schema.json',
+    'loop-dashboard.schema.json',
     'capability-snapshot.schema.json',
   ]
   const ids = new Set()

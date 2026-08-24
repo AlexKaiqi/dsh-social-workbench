@@ -17,6 +17,7 @@ export function registerWorkbenchRpc(ctx, service) {
     if (!emptyObject(payload)) return fail(`${endpoint} payload must be an empty object`)
     try {
       if (endpoint === 'bootstrap' || endpoint === 'refresh-health') return ok(await service.capabilitySnapshot())
+      if (endpoint === 'loop-dashboard') return ok(await service.loopDashboard())
       return fail(`unknown endpoint ${JSON.stringify(endpoint)}`)
     } catch (error) {
       return fail(error instanceof Error ? error.message : String(error))
