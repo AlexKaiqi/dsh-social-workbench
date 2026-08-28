@@ -8,6 +8,9 @@ import { createCapabilityRegistry } from './capabilities.js'
 
 const READABLE_COLLECTIONS = new Set([
   'sources',
+  'source-items',
+  'research-runs',
+  'video-transcripts',
   'briefs',
   'packages',
   'revisions',

@@ -1,6 +1,6 @@
 export const SOCIAL_WORKBENCH_TOOL = {
   name: 'social_workbench',
-  description: 'Stage authorized local material into evidence-backed briefs and approval-ready Xiaohongshu/Douyin content packages. This tool cannot confirm or publish. Call action=help for the exact workflow.',
+  description: 'Read de-identified user-collected Douyin research evidence, and stage authorized local material into evidence-backed briefs and approval-ready Xiaohongshu/Douyin content packages. This tool cannot collect platform data and cannot confirm or publish. Call action=help for the exact workflow.',
   parameters: {
     action: {
       type: 'string',
@@ -13,7 +13,7 @@ export const SOCIAL_WORKBENCH_TOOL = {
     },
     collection: {
       type: 'string',
-      enum: ['sources', 'briefs', 'packages', 'revisions', 'plans', 'outbox', 'receipts', 'reconciliations', 'metric-snapshots', 'feedback-items', 'hypothesis-reviews'],
+      enum: ['sources', 'source-items', 'research-runs', 'video-transcripts', 'briefs', 'packages', 'revisions', 'plans', 'outbox', 'receipts', 'reconciliations', 'metric-snapshots', 'feedback-items', 'hypothesis-reviews'],
       description: 'Immutable collection for action=read.',
     },
     id: { type: 'string', description: 'Stable object id for action=read.' },

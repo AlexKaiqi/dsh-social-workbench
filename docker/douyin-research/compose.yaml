@@ -1,0 +1,24 @@
+services:
+  douyin-research:
+    image: ${DSH_SOCIAL_DOUYIN_RESEARCH_IMAGE:-dsh-social-douyin-research:0.3.0}
+    build:
+      context: ../..
+      dockerfile: docker/douyin-research/Dockerfile
+      args:
+        MEDIACRAWLER_COMMIT: ${DSH_SOCIAL_MEDIACRAWLER_COMMIT}
+        UV_VERSION: ${DSH_SOCIAL_UV_VERSION}
+        FASTER_WHISPER_VERSION: ${DSH_SOCIAL_FASTER_WHISPER_VERSION}
+    container_name: dsh-social-douyin-research
+    init: true
+    shm_size: 1gb
+    ports:
+      - "127.0.0.1:${DSH_SOCIAL_DOUYIN_RESEARCH_PORT:-7900}:7900"
+    volumes:
+      - "${DSH_SOCIAL_DOUYIN_RESEARCH_STATE}:/state"
+      - "${DSH_SOCIAL_DOUYIN_RESEARCH_ARTIFACTS}:/artifacts"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x Xvfb >/dev/null && pgrep -f 'websockify.*7900' >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped

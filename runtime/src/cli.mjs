@@ -4,8 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DouyinBroadcastKitAdapter } from './adapters/douyin-broadcast-kit.mjs'
+import { createDockerResearchRuntime, DouyinResearchAdapter, LocalWhisperAdapter } from './adapters/douyin-research.mjs'
 import { XiaohongshuHttpAdapter } from './adapters/xhs-http.mjs'
 import { PublicationLoop } from './orchestrator.mjs'
+import { createDouyinConnector } from './platform-connector.mjs'
 import { LoopStore } from './store.mjs'
 import { ContentPipeline } from './content-pipeline.mjs'
 import { SocialLoopControl } from './loop-control.mjs'
@@ -37,6 +39,7 @@ function paths() {
   return {
     runtimeState: path.resolve(option('--state-root') ?? path.join(workbenchRoot, 'runtime')),
     sidecars: path.resolve(option('--sidecar-root') ?? path.join(workbenchRoot, 'sidecars')),
+    researchArtifacts: path.resolve(option('--research-artifacts-root') ?? path.join(workbenchRoot, 'research-artifacts')),
   }
 }
 
@@ -58,6 +61,62 @@ function douyinAdapter(sidecars) {
   })
 }
 
+function douyinResearchAdapter(resolved, store) {
+  const stateRoot = path.join(resolved.sidecars, 'state', 'douyin-research')
+  if (option('--runtime') === 'local') {
+    const source = path.join(resolved.sidecars, 'src', 'MediaCrawler')
+    return new DouyinResearchAdapter({
+      python: path.join(source, '.venv', 'bin', 'python'),
+      cwd: source,
+      wrapper: path.join(projectRoot, 'scripts', 'mediacrawler-entry.py'),
+      stateRoot,
+      artifactsRoot: resolved.researchArtifacts,
+      store,
+      account: option('--account') ?? 'default',
+    })
+  }
+  const dockerRuntime = createDockerResearchRuntime({
+    containerName: option('--container') ?? 'dsh-social-douyin-research',
+    hostArtifactsRoot: resolved.researchArtifacts,
+    hostStateRoot: stateRoot,
+  })
+  return new DouyinResearchAdapter({
+    python: '/opt/MediaCrawler/.venv/bin/python',
+    cwd: '/opt/MediaCrawler',
+    wrapper: '/opt/dsh/mediacrawler-entry.py',
+    stateRoot,
+    artifactsRoot: resolved.researchArtifacts,
+    store,
+    account: option('--account') ?? 'default',
+    ...dockerRuntime,
+  })
+}
+
+function localWhisperAdapter(resolved, store) {
+  const stateRoot = path.join(resolved.sidecars, 'state', 'douyin-research')
+  if (option('--runtime') === 'local') {
+    const source = path.join(resolved.sidecars, 'src', 'MediaCrawler')
+    return new LocalWhisperAdapter({
+      python: path.join(source, '.venv', 'bin', 'python'),
+      helper: path.join(projectRoot, 'scripts', 'transcribe-local-media.py'),
+      store,
+      artifactsRoot: resolved.researchArtifacts,
+    })
+  }
+  const dockerRuntime = createDockerResearchRuntime({
+    containerName: option('--container') ?? 'dsh-social-douyin-research',
+    hostArtifactsRoot: resolved.researchArtifacts,
+    hostStateRoot: stateRoot,
+  })
+  return new LocalWhisperAdapter({
+    python: '/opt/MediaCrawler/.venv/bin/python',
+    helper: '/opt/dsh/transcribe-local-media.py',
+    store,
+    artifactsRoot: resolved.researchArtifacts,
+    runImpl: dockerRuntime.runImpl,
+  })
+}
+
 async function readInput() {
   const inputPath = path.resolve(requiredOption('--input'))
   return { input: JSON.parse(await readFile(inputPath, 'utf8')), inputPath }
@@ -70,6 +129,14 @@ function adapters(resolved) {
   }
 }
 
+function douyinConnector(resolved, store) {
+  return createDouyinConnector({
+    research: douyinResearchAdapter(resolved, store),
+    transcriber: localWhisperAdapter(resolved, store),
+    publisher: douyinAdapter(resolved.sidecars),
+  })
+}
+
 async function main() {
   const command = process.argv[2]
   const platform = process.argv[3]
@@ -78,6 +145,64 @@ async function main() {
   const publicationLoop = new PublicationLoop({ store })
   const contentPipeline = new ContentPipeline({ store, publicationLoop })
   const loopControl = new SocialLoopControl({ store, publicationLoop, contentPipeline })
+
+  if (command === 'connector') {
+    if (platform !== 'douyin') throw new Error('connector currently supports douyin only')
+    const action = process.argv[4]
+    const connector = douyinConnector(resolved, store)
+    const strategy = option('--strategy') ?? 'balanced'
+    if (action === 'capabilities') {
+      process.stdout.write(`${JSON.stringify(connector.snapshot({ strategy }), null, 2)}\n`)
+      return
+    }
+    if (action === 'plan') {
+      process.stdout.write(`${JSON.stringify(connector.plan(requiredOption('--capability'), { strategy }), null, 2)}\n`)
+      return
+    }
+    throw new Error('connector douyin requires capabilities or plan')
+  }
+
+  if (command === 'research') {
+    if (platform !== 'douyin') throw new Error('research currently supports douyin only')
+    const action = process.argv[4]
+    const researcher = douyinResearchAdapter(resolved, store)
+    if (action === 'doctor') {
+      process.stdout.write(`${JSON.stringify(await researcher.doctor(), null, 2)}\n`)
+      return
+    }
+    if (action === 'login') {
+      process.stdout.write(`${JSON.stringify(await researcher.login({
+        licenseAccepted: flag('--accept-mediacrawler-license'),
+      }), null, 2)}\n`)
+      return
+    }
+    if (action === 'search') {
+      const keywords = requiredOption('--keywords').split(',').map(value => value.trim()).filter(Boolean)
+      process.stdout.write(`${JSON.stringify(await researcher.search({
+        keywords,
+        maxVideos: Number(option('--max-videos') ?? 10),
+        maxComments: Number(option('--max-comments') ?? 10),
+        includeSubComments: flag('--include-sub-comments'),
+        licenseAccepted: flag('--accept-mediacrawler-license'),
+      }), null, 2)}\n`)
+      return
+    }
+    if (action === 'fetch-media') {
+      process.stdout.write(`${JSON.stringify(await researcher.downloadVideo(
+        requiredOption('--source-item'),
+        { licenseAccepted: flag('--accept-mediacrawler-license') },
+      ), null, 2)}\n`)
+      return
+    }
+    if (action === 'transcribe') {
+      process.stdout.write(`${JSON.stringify(await localWhisperAdapter(resolved, store).transcribe(
+        requiredOption('--source-item'),
+        { model: option('--model') ?? 'small', language: option('--language') ?? 'zh' },
+      ), null, 2)}\n`)
+      return
+    }
+    throw new Error('research douyin requires doctor, login, search, fetch-media, or transcribe')
+  }
 
   if (command === 'ingest') {
     const { input, inputPath } = await readInput()
@@ -257,6 +382,13 @@ async function main() {
   process.stdout.write(`  social review --input <hypothesis-review.json>\n`)
   process.stdout.write(`  social next-brief --review <review_id>\n`)
   process.stdout.write(`  social dashboard\n`)
+  process.stdout.write(`  social connector douyin capabilities [--strategy balanced|lowest-cost|lowest-latency|widest-coverage|highest-reliability]\n`)
+  process.stdout.write(`  social connector douyin plan --capability <capability.id> [--strategy <strategy>]\n`)
+  process.stdout.write(`  social research douyin doctor\n`)
+  process.stdout.write(`  social research douyin login --accept-mediacrawler-license [--account <name>]\n`)
+  process.stdout.write(`  social research douyin search --keywords <one,two> --accept-mediacrawler-license [--max-videos <10-50>] [--max-comments <1-50>] [--include-sub-comments]\n`)
+  process.stdout.write(`  social research douyin fetch-media --source-item <sourceitem_...> --accept-mediacrawler-license\n`)
+  process.stdout.write(`  social research douyin transcribe --source-item <sourceitem_...> [--model small] [--language zh]\n`)
   process.stdout.write(`  social doctor <xiaohongshu|douyin> [--live-login-check]\n`)
   process.stdout.write(`  social dry-run douyin --revision <sha256:...>\n`)
   process.stdout.write(`  social execute <xiaohongshu|douyin> --revision <sha256:...> --confirmation-id <id>\n`)

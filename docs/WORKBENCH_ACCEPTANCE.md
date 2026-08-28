@@ -76,3 +76,16 @@ package dsh.client
 - 刷新时间从 `23:23:47` 更新为 `23:24:19`，证明 health snapshot 与 loop dashboard RPC 均完成真实装配；
 - Client 中没有登录、计划批准、确认、执行、对账或反馈采集按钮，浏览器 console error/warning 为 0；
 - 暗色主题首次截图暴露统计卡白底/浅色字的对比度问题；改用 DSH theme layer 后强刷复验，卡片、刷新按钮和导航均清晰可读。
+
+## 0.3.0 抖音研究 ingress 契约验收
+
+2026-08-25 在 Node 24.17.0 完成离线契约与模拟 sidecar 验收：
+
+- `npm run check` 为 runtime 35/35、root 18/18；三个新增 Draft 2020-12 schema 均编译通过；
+- 模拟二维码登录只使用专用 profile，adapter 参数不含 Cookie，wrapper 强制关闭 CDP 和“连接现有 Chrome”；
+- 模拟搜索把视频文案、评论和公开计数写入 canonical store，作者 hash、昵称和临时视频 URL 均未进入结果；
+- 视频下载只接受已经登记的单条 Douyin video source item，ASR 只读取 research artifacts root 内且 SHA-256 未变化的文件；
+- Host 只把 `source-items`、`research-runs`、`video-transcripts` 开放为按 ID 读取；`research-media` 路径、登录、搜索、下载和转写仍不在模型工具 surface；
+- `research douyin doctor` 在未安装可选 sidecar 时如实返回 `ready=false`，没有把 wrapper 存在误判为采集可用。
+
+尚未执行真实账号扫码或真实抖音请求；受限许可证的接受、sidecar 安装和平台 live 验收保留给用户。

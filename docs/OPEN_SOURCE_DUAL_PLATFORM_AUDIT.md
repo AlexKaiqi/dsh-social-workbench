@@ -78,7 +78,7 @@ prepared
 | `bin0o0o0/social_media_pubulish_MCP` `905947ee478c3b5134c8b815304c3dcb9bd46ceb` | 未发现许可证 | 45/45 测试、typecheck 通过；生产依赖 5 个审计问题 | 有私密可见性和短信续接；抖音成功仅代表点击按钮，状态字段也自相矛盾 | **仅参考交互设计** |
 | `lancelin111/douyin-mcp-server` `594290ded2d02611f361475782d20d3bd0dac417` | MIT | 14/14 测试和 build 通过；生产依赖 15 个审计问题 | 点击发布后即返回 `success: true`；测试未覆盖真实发布事实 | **拒绝作为执行依赖** |
 | `Kuhakucai/douyin-mcp` `53c888a5e1d83ea70978e71432ad8774707d69b7` | AGPL-3.0-only | `doctor` ready；仓库未发现可运行测试，pytest 返回 no tests | 自有账号可见数据同步/分析，不负责发布 | 可选独立分析 sidecar；MVP 不引入 |
-| `NanmiCoder/MediaCrawler` `d6f7c5bb906b6dac40ddf343ef9e26438a3de092` | 限非商业学习用途 | 代码与入口审阅 | 浏览器 Cookie、私有接口和签名，能采集抖音/小红书公开内容 | 仅作显式风险确认的个人研究 sidecar，默认关闭 |
+| `NanmiCoder/MediaCrawler` `d6f7c5bb906b6dac40ddf343ef9e26438a3de092` | 限非商业学习用途 | 代码与入口审阅；0.3.0 adapter mock/conformance 测试 | 浏览器 Cookie、私有接口和签名，能采集抖音公开视频文案与评论 | 0.3.0 已作为显式许可确认的可选本机研究 sidecar；默认不安装、不定时运行，强制独立 Playwright profile |
 | `content-pilot` `061eb9c2ea2b387084ac217cdc81c38f3cd522f9` | MIT | 154 测试通过；ruff 发现 189 项 | 小红书/抖音等待超时后仍返回成功；小红书视频路径调用图片发布 | **拒绝运行时**；可参考内容/UI 分层 |
 | `mcp-social-publisher` `1c0059ea295ed16ee48c81f8f5bf5bd1e199d27a` | MIT | 1 个测试 | 小红书为人工交接，未提供双平台真实执行 | 不承担双平台闭环 |
 | `DouPipeline` `7525494da3854b06c878528567f43139e4fbb693` | 未发现许可证 | 无测试；代码审阅 | 硬编码默认值且存在误报成功 | 拒绝 |
@@ -240,14 +240,14 @@ cancel(attemptId)
 ### Phase D：输入与反馈闭环
 
 1. 小红书使用受控搜索和本人主页数据作为第一批输入；
-2. 抖音默认接收用户 URL 与本人创作者数据；
+2. 抖音可由用户侧 CLI 小批量搜索公开视频文案和评论；这是非官方小样本，原始 JSONL 归一化后删除；
 3. 把新观察写成 research observation，不直接写长期用户画像；
 4. 发布后按 receipt ID 拉取表现数据，生成“继续/修改/停止”建议；
 5. 只有用户确认的稳定偏好才提交 Personal Knowledge proposal。
 
 ## 7. 不进入 MVP 的能力
 
-- 不默认启用 MediaCrawler 或逆向私有接口做全站采集；
+- 不默认安装或后台启用 MediaCrawler，不做全站采集；只有用户逐次确认受限许可证后才执行小批量搜索；
 - 不自动给陌生用户评论、点赞、私信或批量关注；
 - 不把相亲/社交账号的敏感个人信息收集作为通用 ingestion；
 - 不做无人值守公开发布；

@@ -88,6 +88,9 @@ test('stages one complete source-to-dual-platform package through the service', 
   const status = await service.status()
   assert.deepEqual(status.counts, {
     sources: 1,
+    'source-items': 0,
+    'research-runs': 0,
+    'video-transcripts': 0,
     briefs: 1,
     packages: 1,
     revisions: 2,

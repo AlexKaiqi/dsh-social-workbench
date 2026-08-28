@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/video-transcript.schema.json",
+  "title": "VideoTranscriptV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "transcriptId", "sourceItemId", "mediaSha256", "engine", "model", "language", "languageProbability", "text", "segments", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.video-transcript/v1" },
+    "transcriptId": { "type": "string", "pattern": "^transcript_[a-f0-9]{64}$" },
+    "sourceItemId": { "type": "string", "pattern": "^sourceitem_[a-f0-9]{64}$" },
+    "mediaSha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "engine": { "const": "faster-whisper" },
+    "model": { "type": "string", "minLength": 1 },
+    "language": { "type": "string", "minLength": 2 },
+    "languageProbability": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "text": { "type": "string" },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "end", "text"],
+        "properties": {
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}

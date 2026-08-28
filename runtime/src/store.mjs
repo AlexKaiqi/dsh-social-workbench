@@ -5,6 +5,10 @@ import { assertSafeId, stableStringify } from './domain.mjs'
 
 export const COLLECTIONS = new Set([
   'sources',
+  'source-items',
+  'research-runs',
+  'research-media',
+  'video-transcripts',
   'briefs',
   'packages',
   'revisions',

@@ -6,3 +6,5 @@ cookies.json
 auth.json
 runtime-state/
 sidecars/
+__pycache__/
+*.pyc

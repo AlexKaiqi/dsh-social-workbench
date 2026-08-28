@@ -152,3 +152,37 @@ export function createDouyinProbe({ sidecarRoot, account = 'default' }) {
     }
   }
 }
+
+export function createDouyinResearchProbe({ sidecarRoot, account = 'default' }) {
+  return async ({ observedAt }) => {
+    const source = path.join(sidecarRoot, 'src', 'MediaCrawler')
+    const python = path.join(source, '.venv', 'bin', 'python')
+    const entry = path.join(source, 'main.py')
+    const profile = path.join(sidecarRoot, 'state', 'douyin-research', 'browser-profiles', account, 'dy_user_data_dir')
+    const [pythonReady, sourceReady, profilePresent] = await Promise.all([
+      exists(python, fsConstants.X_OK),
+      exists(entry, fsConstants.R_OK),
+      exists(profile, fsConstants.R_OK),
+    ])
+    const installed = pythonReady && sourceReady
+    if (!installed) {
+      return {
+        state: 'blocked',
+        summary: '抖音研究 sidecar 尚未显式安装。',
+        observedAt,
+        conditions: [condition('RuntimeInstalled', 'false', 'OptionalRuntimeMissing', '固定 MediaCrawler 源码或隔离 Python 环境缺失。', observedAt, '审阅受限许可证后运行 npm run bootstrap:douyin-research -- --accept-mediacrawler-license。')],
+      }
+    }
+    return {
+      state: profilePresent ? 'degraded' : 'blocked',
+      summary: profilePresent ? '研究运行时和独立登录目录存在；登录有效性需由用户侧搜索验证。' : '研究运行时已安装，尚未建立独立登录态。',
+      observedAt,
+      conditions: [
+        condition('RuntimeInstalled', 'true', 'PinnedRuntimeReady', '固定 MediaCrawler 与隔离 Python 环境已安装。', observedAt),
+        condition('BrowserProfileIsolated', 'true', 'DedicatedProfile', '研究登录态使用独立 Playwright profile，不连接日常 Chrome。', observedAt),
+        condition('LoginValid', profilePresent ? 'unknown' : 'false', profilePresent ? 'LiveProbeRequired' : 'LoginRequired', profilePresent ? '登录目录存在，但 Host 不读取 Cookie，也不执行平台请求。' : '没有发现研究账号的浏览器 profile。', observedAt, profilePresent ? '用户侧运行 research douyin search；失效时会重新显示二维码。' : '用户侧运行 research douyin login 并扫码。'),
+        condition('OfficialApi', 'false', 'UnofficialPrivateApi', '搜索和评论来自登录浏览器上下文中的非官方接口，不得标记为官方或完整样本。', observedAt),
+      ],
+    }
+  }
+}

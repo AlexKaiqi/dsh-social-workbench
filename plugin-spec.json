@@ -7,7 +7,7 @@
     "registersTools": true,
     "filesystem": "write",
     "persistentState": true,
-    "subprocess": false,
+    "subprocess": true,
     "subagents": false,
     "temporaryResources": false,
     "customProtocol": true
@@ -39,6 +39,7 @@
       { "file": "test/health-probes.test.mjs", "layer": "L2" },
       { "file": "test/rpc.test.mjs", "layer": "L1" },
       { "file": "runtime/test/store.test.mjs", "layer": "L2" },
+      { "file": "runtime/test/adapters.test.mjs", "layer": "L2" },
       { "file": "runtime/test/loop-control.test.mjs", "layer": "L2" },
       { "file": "runtime/test/loop.test.mjs", "layer": "L2" }
     ]
@@ -54,6 +55,9 @@
   },
   "contracts": [
     { "name": "social-workbench-source", "file": "spec/source-bundle.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-source-item", "file": "spec/source-item.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-research-run", "file": "spec/research-run.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-video-transcript", "file": "spec/video-transcript.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-brief", "file": "spec/evidence-brief.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-package", "file": "spec/content-package.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-plan", "file": "spec/publication-plan.schema.json", "versionField": "schemaVersion" },
@@ -65,6 +69,7 @@
     { "name": "social-workbench-hypothesis-review", "file": "spec/hypothesis-review.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-loop-dashboard", "file": "spec/loop-dashboard.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-capability-snapshot", "file": "spec/capability-snapshot.schema.json", "versionField": "schemaVersion" },
+    { "name": "social-workbench-platform-connector", "file": "spec/platform-connector.schema.json", "versionField": "schemaVersion" },
     { "name": "social-workbench-capability-rpc", "file": "spec/rpc-contract.json", "versionField": "version" }
   ]
 }

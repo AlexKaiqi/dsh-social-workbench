@@ -1,5 +1,5 @@
 import { CapabilityRegistry } from './capability-registry.js'
-import { createDouyinProbe, createStaticProbe, createStoreProbe, createXiaohongshuProbe } from './health-probes.js'
+import { createDouyinProbe, createDouyinResearchProbe, createStaticProbe, createStoreProbe, createXiaohongshuProbe } from './health-probes.js'
 
 const localized = (zh, en) => ({ zh, en })
 const operation = (id, kind, status, authority) => ({ id, kind, status, authority })
@@ -27,6 +27,23 @@ export function createCapabilityRegistry({ root, sidecarRoot, xiaohongshuUrl, fe
     lifecycle: 'planned', critical: false,
     operations: [operation('analyze-demand', 'read', 'planned', 'agent')], dependencies: ['repository.evidence-store'],
   })
+  registry.register({
+    id: 'ingress.douyin-research', version: '0.2.0', area: 'ingress',
+    title: localized('抖音公开内容研究', 'Douyin public-content research'),
+    summary: localized('用户侧扫码后，以独立浏览器目录小批量采集公开视频文案和评论；可选下载单条视频并本地转写。', 'After user-side QR login, collects small batches of public captions and comments in a dedicated browser profile; selected videos may be downloaded and transcribed locally.'),
+    lifecycle: 'partial', critical: false,
+    operations: [
+      operation('read-research-ledger', 'read', 'available', 'agent'),
+      operation('session-inspect', 'read', 'restricted', 'user'),
+      operation('session-login-qr', 'execute', 'restricted', 'user'),
+      operation('discovery-search-videos', 'read', 'restricted', 'user'),
+      operation('engagement-read-comments', 'read', 'restricted', 'user'),
+      operation('engagement-read-comment-replies', 'read', 'restricted', 'user'),
+      operation('media-download-video', 'write', 'restricted', 'user'),
+      operation('media-transcribe-video', 'execute', 'restricted', 'user'),
+    ],
+    dependencies: ['repository.evidence-store'],
+  }, createDouyinResearchProbe({ sidecarRoot }))
   registry.register({
     id: 'content.dual-platform-package', version: '1.0.0', area: 'content',
     title: localized('双平台内容包', 'Dual-platform content package'),

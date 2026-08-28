@@ -1,12 +1,15 @@
 # 候选领域契约
 
-这里同时包含早期研究原型与已经进入 0.2.0 运行时的版本化契约。标为“运行切片”的 schema 已是 Host/CLI/Client 的事实边界；变化时必须同步实现、测试与兼容说明。
+这里同时包含早期研究原型与已经进入 0.3.0 运行时的版本化契约。标为“运行切片”的 schema 已是 Host/CLI/Client 的事实边界；变化时必须同步实现、测试与兼容说明。
 
 | Schema | 作用 |
 | --- | --- |
 | `adapter-manifest.schema.json` | 描述 adapter 包的类型、运行方式、许可、理论能力、证据和 conformance 状态 |
 | `connector-capability.schema.json` | 描述一个已配置连接器实例的真实能力、证据和授权状态 |
-| `source-item.schema.json` | 保存标准化来源事实和 provenance，不包含模型推断 |
+| `platform-connector.schema.json` | 描述面向调用者的细粒度平台能力、候选 provider、执行方式和成本/速度/覆盖/可靠性路由信息 |
+| `source-item.schema.json` | 运行切片：保存去身份化的抖音视频文案/评论、公开计数和非官方采集 provenance，不包含模型推断 |
+| `research-run.schema.json` | 运行切片：保存一次用户侧关键词采集的查询、限制、固定 collector 和 source item lineage |
+| `video-transcript.schema.json` | 运行切片：保存选中视频的本地 ASR 文本、时间段、模型和媒体指纹 |
 | `demand-signal.schema.json` | 保存由多个证据支持的需求假设、反例和置信度 |
 | `content-brief.schema.json` | 把需求信号转为带 claim ledger 的内容任务 |
 | `publication-plan.schema.json` | 运行切片：plan hash、双平台 revision、排期和仅允许本地入队的用户批准 |
@@ -24,4 +27,4 @@
 | `evidence-brief.schema.json` | 运行切片：每条 claim 都必须引用本次 source 的证据化 brief |
 | `content-package.schema.json` | 运行切片：同一 brief 生成的小红书/抖音变体、marker 与两个冻结 revision |
 
-共同原则：Adapter Manifest 描述代码理论能力，Connector Capability 描述账号当前实际能力；二者不可合并。ID 是内部稳定 ID；外部平台 ID 单独保存；所有时间为 RFC 3339；secret 只能用 credential ref 间接引用；任何 derived 对象都通过 ID 回链，而不复制一份来源真相。`publication-result` 仍是早期通用研究对象；当前 browser-assisted 实现以 plan/outbox/revision/confirmation/receipt/reconciliation v1 为事实源，不能把旧 `published` 状态映射成未经反查的 `confirmed`。
+共同原则：Adapter Manifest 描述代码理论能力，Connector Capability 描述账号当前实际能力，Platform Connector Snapshot 描述调用者可见的细粒度能力及其 provider 路由；三者不可合并。ID 是内部稳定 ID；外部平台 ID 单独保存；所有时间为 RFC 3339；secret 只能用 credential ref 间接引用；任何 derived 对象都通过 ID 回链，而不复制一份来源真相。`publication-result` 仍是早期通用研究对象；当前 browser-assisted 实现以 plan/outbox/revision/confirmation/receipt/reconciliation v1 为事实源，不能把旧 `published` 状态映射成未经反查的 `confirmed`。

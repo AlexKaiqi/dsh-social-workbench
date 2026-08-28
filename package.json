@@ -1,6 +1,6 @@
 {
   "name": "@dsh/social-workbench",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "main": "./dsh/index.js",
@@ -17,6 +17,7 @@
   "files": [
     "dsh",
     "client/client.js",
+    "docker",
     "runtime/src",
     "spec",
     "third_party",
@@ -36,6 +37,8 @@
     "test": "node --test test/*.test.mjs",
     "check": "npm run build:client && node --check dsh/*.js dsh/model/*.js scripts/*.mjs && npm --prefix runtime run check && npm test",
     "bootstrap:sidecars": "node scripts/bootstrap-sidecars.mjs",
+    "bootstrap:douyin-research": "node scripts/bootstrap-sidecars.mjs --only-douyin-research",
+    "bootstrap:douyin-research:docker": "node scripts/bootstrap-douyin-research-docker.mjs",
     "social": "node runtime/src/cli.mjs"
   },
   "dependencies": {

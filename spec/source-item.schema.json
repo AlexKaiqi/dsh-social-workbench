@@ -1,53 +1,37 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://dsh.dev/social-workbench/source-item.schema.json",
-  "title": "SourceItem",
+  "title": "SourceItemV1",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "id",
-    "source",
-    "externalId",
-    "canonicalUrl",
-    "observedAt",
-    "visibility",
-    "content",
-    "provenance"
-  ],
+  "required": ["schemaVersion", "id", "runId", "kind", "source", "externalId", "parentExternalId", "canonicalUrl", "publishedAt", "observedAt", "visibility", "content", "metrics", "mediaArtifactId", "provenance", "privacy"],
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
+    "schemaVersion": { "const": "social-workbench.source-item/v1" },
+    "id": { "type": "string", "pattern": "^sourceitem_[a-f0-9]{64}$" },
+    "runId": { "type": "string", "pattern": "^research_[a-f0-9-]{36}$" },
+    "kind": { "enum": ["video", "comment"] },
     "source": {
       "type": "object",
       "additionalProperties": false,
       "required": ["platform", "connectorId"],
       "properties": {
-        "platform": { "type": "string", "minLength": 1 },
-        "connectorId": { "type": "string", "minLength": 1 },
-        "sourceAccountId": { "type": "string" }
+        "platform": { "const": "douyin" },
+        "connectorId": { "const": "mediacrawler-douyin-research" }
       }
     },
-    "externalId": { "type": "string", "minLength": 1 },
-    "canonicalUrl": { "type": "string", "format": "uri" },
-    "author": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "externalId": { "type": "string" },
-        "displayName": { "type": "string" },
-        "profileUrl": { "type": "string", "format": "uri" }
-      }
-    },
-    "publishedAt": { "type": "string", "format": "date-time" },
+    "externalId": { "type": "string", "pattern": "^[0-9]{5,40}$" },
+    "parentExternalId": { "type": ["string", "null"], "pattern": "^[0-9]{5,40}$" },
+    "canonicalUrl": { "type": "string", "format": "uri", "pattern": "^https://www\\.douyin\\.com/video/" },
+    "publishedAt": { "type": ["string", "null"], "format": "date-time" },
     "observedAt": { "type": "string", "format": "date-time" },
-    "visibility": { "enum": ["public", "owned", "authorized", "restricted"] },
+    "visibility": { "const": "public" },
     "content": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["text", "media"],
+      "required": ["text", "textKind", "media"],
       "properties": {
-        "title": { "type": "string" },
         "text": { "type": "string" },
-        "language": { "type": "string" },
+        "textKind": { "enum": ["platform-caption", "comment"] },
         "media": {
           "type": "array",
           "items": {
@@ -55,28 +39,39 @@
             "additionalProperties": false,
             "required": ["type", "url"],
             "properties": {
-              "type": { "enum": ["image", "video", "audio", "document", "link"] },
-              "url": { "type": "string", "format": "uri" },
-              "rightsNote": { "type": "string" }
+              "type": { "const": "video" },
+              "url": { "type": "string", "format": "uri" }
             }
           }
         }
       }
     },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value", "definition"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "value": { "type": "number", "minimum": 0 },
+          "definition": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "mediaArtifactId": { "type": ["string", "null"], "pattern": "^media_[a-f0-9]{64}$" },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["accessMode", "contentHash"],
+      "required": ["accessMode", "collector", "collectorCommit", "contentHash", "termsBasis"],
       "properties": {
-        "accessMode": {
-          "enum": ["official-api", "official-feed-export", "delegated-service", "manual-import"]
-        },
-        "upstreamUrl": { "type": "string", "format": "uri" },
-        "contentHash": { "type": "string", "minLength": 1 },
-        "observationRef": { "type": "string" },
-        "termsBasis": { "type": "string" }
+        "accessMode": { "const": "authenticated-browser-private-api" },
+        "collector": { "const": "NanmiCoder/MediaCrawler" },
+        "collectorCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "termsBasis": { "type": "string", "minLength": 1 }
       }
     },
-    "tombstonedAt": { "type": "string", "format": "date-time" }
+    "privacy": { "const": "no-platform-user-identity-retained" }
   }
 }

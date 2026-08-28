@@ -1,5 +1,7 @@
 # Adapter 架构
 
+状态说明：本文保留各类 adapter port、失败语义和 conformance 原则；平台、能力、adapter、connector、route 与动态解析的最新分层以 [`CONNECTOR_EXPECTED_ARCHITECTURE.md`](./CONNECTOR_EXPECTED_ARCHITECTURE.md) 为准。本文早期示例中的 `effectiveCapabilities` 不应继续内嵌在 ConnectorInstance 中。
+
 ## 1. 为什么不能只有一个 Connector 接口
 
 四个阶段面对的失败语义不同：
@@ -17,18 +19,36 @@
 
 ```text
 AdapterDefinition (代码/包级)
-  id, kind, version, runtime, license
-  configSchema, capabilitySchema, secretFields
-  maturity, officialEvidence, conformanceSuite
+  id, version, platforms, kind, runtime, license, configSchema
+  routes[capability/version + mode + ports + mapping
+         + execution/coupling + quality + maturity + evidence]
 
 ConnectorInstance (用户配置级)
-  adapterId + adapterVersion
-  accountRef + credentialRef
-  lifecycle + grantedScopes
-  effectiveCapabilities + checkedAt + expiresAt
+  scope + platform + adapterId/version + configRef
+  accountBindingRef + credentialRefs + grantedScopes
+  lifecycle + authorization + enabledRoutes
+
+CapabilityResolution (动态投影)
+  requirement + candidateRoutes + selectedRoute
+  policy + health + limits + evidence + expiresAt
 ```
 
-`AdapterDefinition` 说“这段代码理论上会什么”；`ConnectorInstance` 说“这个账号现在实际能什么”。二者不能合并。
+`AdapterDefinition` 说“这段代码理论上会什么”；`ConnectorInstance` 保存“本机配置和授权事实”；`CapabilityResolution` 才回答“这个目的下此刻实际能什么”。三者不能合并。
+
+### 2.1 面向调用者的 Platform Connector
+
+四类 port 仍然分别承担真实执行语义，但调用者不应绑定某个开源仓库。平台 Connector 是一层薄 facade：暴露稳定的细粒度 capability ID，并把同一能力路由到一个或多个 provider。
+
+```text
+discovery.search.videos
+  ├── MediaCrawler（本地、零 API 费用、浏览器辅助）
+  ├── official-openapi（获批时优先可靠性）
+  └── delegated-api（需要广覆盖或低延迟时选用）
+```
+
+路由策略首版只有 `balanced / lowest-cost / lowest-latency / widest-coverage / highest-reliability`。成本、速度、覆盖和可靠性使用有序等级，不伪造精确 SLA。只读与本地写入可按候选链 fallback；任何 `platform-write` 必须进入既有 outbox/confirmation/reconciliation 状态机，generic connector 不执行、不自动 fallback、不盲目重试。
+
+首个运行契约见 `spec/platform-connector.schema.json` 和 `runtime/src/platform-connector.mjs`。它不取代 AdapterDefinition、ConnectorInstance、健康 probe 或 capability evidence；只负责“用户想做什么”到“哪些 provider 可以做”的稳定映射。
 
 ## 3. Ingress Adapter
 

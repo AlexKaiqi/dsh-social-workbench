@@ -21,9 +21,18 @@
         "broadcast_kit/publishers/douyin/__init__.py": "30e092687258dd97e925c3c1ccf84fd680de2096752775155c3e574f66126236",
         "tests/test_social_workbench_guards.py": "3c362ba986093611bf5ebafde7f0381fcc69f8c8405bcadd935c978378003a6a"
       }
+    },
+    "douyinResearch": {
+      "repository": "https://github.com/NanmiCoder/MediaCrawler.git",
+      "commit": "d6f7c5bb906b6dac40ddf343ef9e26438a3de092",
+      "license": "LicenseRef-NON-COMMERCIAL-LEARNING-1.1",
+      "licenseReview": "restricted",
+      "optional": true
     }
   },
   "tooling": {
-    "imageioFfmpeg": "0.6.0"
+    "imageioFfmpeg": "0.6.0",
+    "fasterWhisper": "1.2.1",
+    "uv": "0.8.12"
   }
 }

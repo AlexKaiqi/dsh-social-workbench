@@ -13,6 +13,10 @@ function argument(name) {
   return index >= 0 ? process.argv[index + 1] : undefined
 }
 
+function flag(name) {
+  return process.argv.includes(name)
+}
+
 function run(command, args, { cwd, env = {}, allowFailure = false } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -105,41 +109,79 @@ const binRoot = path.join(stateRoot, 'bin')
 await mkdir(sourceRoot, { recursive: true, mode: 0o700 })
 await mkdir(binRoot, { recursive: true, mode: 0o700 })
 
-const xhs = await ensureCheckout('xiaohongshu-mcp', manifest.sidecars.xiaohongshu, sourceRoot)
-const douyin = await ensureCheckout('broadcast-kit', manifest.sidecars.douyin, sourceRoot)
-await applyPatch(douyin, manifest.sidecars.douyin.patch)
-await assertPatchedFiles(douyin, manifest.sidecars.douyin)
+const researchOnly = flag('--only-douyin-research')
+const withResearch = researchOnly || flag('--with-douyin-research')
+const withLocalAsr = flag('--with-local-asr')
+const bootstrapPython = argument('--python') ?? 'python3'
+if (withLocalAsr && !withResearch) throw new Error('--with-local-asr requires --with-douyin-research or --only-douyin-research')
+if (withResearch && !flag('--accept-mediacrawler-license')) {
+  throw new Error('MediaCrawler is restricted to non-commercial learning/research; inspect its LICENSE and pass --accept-mediacrawler-license explicitly')
+}
 
-const xhsBinary = path.join(binRoot, 'xiaohongshu-mcp')
-await run('go', ['build', '-trimpath', '-o', xhsBinary, '.'], { cwd: xhs })
-const xhsLoginBinary = path.join(binRoot, 'xiaohongshu-login')
-await run('go', ['build', '-trimpath', '-o', xhsLoginBinary, './cmd/login'], { cwd: xhs })
+let publishing = null
+if (!researchOnly) {
+  const xhs = await ensureCheckout('xiaohongshu-mcp', manifest.sidecars.xiaohongshu, sourceRoot)
+  const douyin = await ensureCheckout('broadcast-kit', manifest.sidecars.douyin, sourceRoot)
+  await applyPatch(douyin, manifest.sidecars.douyin.patch)
+  await assertPatchedFiles(douyin, manifest.sidecars.douyin)
 
-const python = argument('--python') ?? 'python3'
-const venv = path.join(stateRoot, 'broadcast-kit-venv')
-if (!(await exists(path.join(venv, 'bin', 'python')))) await run(python, ['-m', 'venv', venv])
-const venvPython = path.join(venv, 'bin', 'python')
-await run(venvPython, ['-m', 'pip', 'install', '--disable-pip-version-check', '-e', douyin, `imageio-ffmpeg==${manifest.tooling.imageioFfmpeg}`])
-// The publishers launch a visible browser. Avoid downloading the separate
-// headless-shell artifact, which is unused and can stall on some CDN routes.
-await run(venvPython, ['-m', 'playwright', 'install', 'chromium', '--no-shell', '--no-progress'])
+  const xhsBinary = path.join(binRoot, 'xiaohongshu-mcp')
+  await run('go', ['build', '-trimpath', '-o', xhsBinary, '.'], { cwd: xhs })
+  const xhsLoginBinary = path.join(binRoot, 'xiaohongshu-login')
+  await run('go', ['build', '-trimpath', '-o', xhsLoginBinary, './cmd/login'], { cwd: xhs })
 
-const ffmpegLookup = await run(venvPython, ['-c', 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())'])
-const ffmpegLink = path.join(binRoot, 'ffmpeg')
-await rm(ffmpegLink, { force: true })
-await symlink(ffmpegLookup.stdout, ffmpegLink)
+  const venv = path.join(stateRoot, 'broadcast-kit-venv')
+  if (!(await exists(path.join(venv, 'bin', 'python')))) await run(bootstrapPython, ['-m', 'venv', venv])
+  const venvPython = path.join(venv, 'bin', 'python')
+  await run(venvPython, ['-m', 'pip', 'install', '--disable-pip-version-check', '-e', douyin, `imageio-ffmpeg==${manifest.tooling.imageioFfmpeg}`])
+  // The publishers launch a visible browser. Avoid downloading the separate
+  // headless-shell artifact, which is unused and can stall on some CDN routes.
+  await run(venvPython, ['-m', 'playwright', 'install', 'chromium', '--no-shell', '--no-progress'])
+
+  const ffmpegLookup = await run(venvPython, ['-c', 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())'])
+  const ffmpegLink = path.join(binRoot, 'ffmpeg')
+  await rm(ffmpegLink, { force: true })
+  await symlink(ffmpegLookup.stdout, ffmpegLink)
+  publishing = {
+    xiaohongshu: { commit: manifest.sidecars.xiaohongshu.commit, binary: xhsBinary, loginBinary: xhsLoginBinary },
+    douyin: { commit: manifest.sidecars.douyin.commit, python: venvPython, source: douyin, ffmpeg: ffmpegLink, patch: manifest.sidecars.douyin.patch },
+  }
+}
+
+let douyinResearch = null
+if (withResearch) {
+  const config = manifest.sidecars.douyinResearch
+  const source = await ensureCheckout('MediaCrawler', config, sourceRoot)
+  let uv = argument('--uv')
+  if (!uv) {
+    const uvVenv = path.join(stateRoot, 'uv-bootstrap-venv')
+    if (!(await exists(path.join(uvVenv, 'bin', 'python')))) await run(bootstrapPython, ['-m', 'venv', uvVenv])
+    const uvPython = path.join(uvVenv, 'bin', 'python')
+    uv = path.join(uvVenv, 'bin', 'uv')
+    if (!(await exists(uv))) {
+      await run(uvPython, ['-m', 'pip', 'install', '--disable-pip-version-check', `uv==${manifest.tooling.uv}`])
+    }
+  }
+  await run(uv, ['sync', '--frozen'], { cwd: source })
+  const researchPython = path.join(source, '.venv', 'bin', 'python')
+  await run(researchPython, ['-m', 'playwright', 'install', 'chromium', '--no-shell', '--no-progress'], { cwd: source })
+  if (withLocalAsr) {
+    await run(uv, ['pip', 'install', '--python', researchPython, `faster-whisper==${manifest.tooling.fasterWhisper}`], { cwd: source })
+  }
+  douyinResearch = {
+    commit: config.commit,
+    source,
+    python: researchPython,
+    license: config.license,
+    localAsr: withLocalAsr ? { engine: 'faster-whisper', version: manifest.tooling.fasterWhisper } : null,
+  }
+}
 
 const result = {
   schemaVersion: 'social-workbench.bootstrap/v1',
   stateRoot,
-  xiaohongshu: { commit: manifest.sidecars.xiaohongshu.commit, binary: xhsBinary, loginBinary: xhsLoginBinary },
-  douyin: {
-    commit: manifest.sidecars.douyin.commit,
-    python: venvPython,
-    source: douyin,
-    ffmpeg: ffmpegLink,
-    patch: manifest.sidecars.douyin.patch,
-  },
+  ...publishing,
+  douyinResearch,
   next: 'Run doctor; bootstrap never logs in or publishes.',
 }
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)

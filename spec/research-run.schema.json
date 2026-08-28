@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsh.dev/social-workbench/research-run.schema.json",
+  "title": "ResearchRunV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "platform", "operation", "queries", "limits", "collector", "sourceItemIds", "mediaArtifactIds", "startedAt", "finishedAt", "rawArtifactsRetained", "privacy"],
+  "properties": {
+    "schemaVersion": { "const": "social-workbench.research-run/v1" },
+    "runId": { "type": "string", "pattern": "^research_[a-f0-9-]{36}$" },
+    "platform": { "const": "douyin" },
+    "operation": { "const": "keyword-search" },
+    "queries": { "type": "array", "minItems": 1, "maxItems": 5, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 80 } },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxVideos", "maxCommentsPerVideo", "includeSubComments"],
+      "properties": {
+        "maxVideos": { "type": "integer", "minimum": 10, "maximum": 50 },
+        "maxCommentsPerVideo": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "includeSubComments": { "type": "boolean" }
+      }
+    },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "commit", "accessMode"],
+      "properties": {
+        "name": { "const": "NanmiCoder/MediaCrawler" },
+        "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "accessMode": { "const": "authenticated-browser-private-api" }
+      }
+    },
+    "sourceItemIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^sourceitem_[a-f0-9]{64}$" } },
+    "mediaArtifactIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^media_[a-f0-9]{64}$" } },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "rawArtifactsRetained": { "type": "boolean" },
+    "privacy": { "const": "no-platform-user-identity-retained" }
+  }
+}

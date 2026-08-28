@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { createDouyinProbe, createXiaohongshuProbe } from '../dsh/health-probes.js'
+import { createDouyinProbe, createDouyinResearchProbe, createXiaohongshuProbe } from '../dsh/health-probes.js'
 
 const context = { observedAt: '2026-08-23T00:00:00.000Z' }
 const response = (status, body) => ({ ok: status >= 200 && status < 300, status, async json() { return body } })
@@ -43,4 +43,20 @@ test('Douyin passive probe never treats an auth file as a valid login', async ()
   const result = await createDouyinProbe({ sidecarRoot: root })(context)
   assert.equal(result.state, 'unknown')
   assert.equal(result.conditions.find(item => item.type === 'LoginValid').status, 'unknown')
+})
+
+test('Douyin research probe reports an isolated profile without claiming login validity', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'social-research-sidecars-'))
+  const python = path.join(root, 'src', 'MediaCrawler', '.venv', 'bin', 'python')
+  const entry = path.join(root, 'src', 'MediaCrawler', 'main.py')
+  const profile = path.join(root, 'state', 'douyin-research', 'browser-profiles', 'default', 'dy_user_data_dir')
+  await mkdir(path.dirname(python), { recursive: true })
+  await mkdir(profile, { recursive: true })
+  await writeFile(python, '#!/bin/sh\n')
+  await chmod(python, 0o755)
+  await writeFile(entry, '# fixture\n')
+  const result = await createDouyinResearchProbe({ sidecarRoot: root })(context)
+  assert.equal(result.state, 'degraded')
+  assert.equal(result.conditions.find(item => item.type === 'LoginValid').status, 'unknown')
+  assert.equal(result.conditions.find(item => item.type === 'OfficialApi').status, 'false')
 })
